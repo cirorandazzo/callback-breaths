@@ -18,6 +18,7 @@ from utils.umap import (
     loc_relative,
     plot_cluster_traces_pipeline,
     plot_embedding_data,
+    plot_violin_by_cluster,
 )
 
 # %load_ext autoreload
@@ -199,6 +200,7 @@ plot_embedding_data(
     set_kwargs=set_kwargs,
     scatter_kwargs=scatter_kwargs,
     masked_clusters=[-1, 5, 10, 12, 13],
+    # or use: highlighted_clusters
     set_bad=dict(c="k", alpha=1),
 )
 
@@ -246,40 +248,39 @@ axs_cluster_traces = plot_cluster_traces_pipeline(
 # %%
 # VIOLIN PLOT BY CLUSTER
 
-data = all_breaths.duration_s
-violin_set_kwargs = dict(
-    title="duration",
-    ylabel="duration (s)",
-    ylim=[-0.1, 0.7],
+# duration
+ax, parts = plot_violin_by_cluster(
+    data = all_breaths.duration_s,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="duration",
+        ylabel="duration (s)",
+        ylim=[-0.1, 0.7],
+    ),
 )
 
-# data = all_breaths.amplitude
-# violin_set_kwargs = dict(
-#     title="amplitude",
-#     ylabel="amplitude (normalized)",
-# )
+# amplitude
+ax, parts = plot_violin_by_cluster(
+    data=all_breaths.amplitude,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="amplitude",
+        ylabel="amplitude (normalized)",
+    ),
+)
 
-# data = all_breaths.stims_index
-# violin_set_kwargs = dict(
-#     title="breath segs since stim",
-#     ylabel="breath segs since stim",
-# )
-
-cluster_data = {
-    i_cluster: data[(clusterer.labels_ == i_cluster) & data.notna()]
-    for i_cluster in np.unique(clusterer.labels_)
-}
-
-labels, data = cluster_data.keys(), cluster_data.values()
-
-
-fig, ax = plt.subplots()
-
-ax.violinplot(data, showextrema=False)
-ax.set_xticks(ticks=range(1, 1 + len(labels)), labels=labels)
-
-ax.set(xlabel="cluster", **violin_set_kwargs)
-
+# breaths since stim
+ax, parts = plot_violin_by_cluster(
+    data=all_breaths.stims_index,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="breath segs since stim",
+        ylabel="breath segs since stim",
+    )
+)
 
 # %%
 # PUTATIVE CALL PERCENTAGE
