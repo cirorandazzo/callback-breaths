@@ -101,6 +101,8 @@ ii_next = all_breaths.apply(
 )
 
 # %%
+# embedding plots
+
 # PUTATIVE CALL
 
 plot_embedding_data(
@@ -112,7 +114,6 @@ plot_embedding_data(
     set_kwargs=set_kwargs,
 )
 
-# %%
 # AMPLITUDE
 
 plot_embedding_data(
@@ -124,7 +125,6 @@ plot_embedding_data(
     set_kwargs=set_kwargs,
 )
 
-# %%
 # DURATION
 
 plot_embedding_data(
@@ -139,7 +139,6 @@ plot_embedding_data(
     cmap_name="viridis",
 )
 
-# %%
 # BREATHS SINCE LAST STIM
 
 plot_embedding_data(
@@ -152,7 +151,6 @@ plot_embedding_data(
     n_breaths=6,
 )
 
-# %%
 # BY BIRD
 
 plot_embedding_data(
@@ -190,19 +188,18 @@ ax_clusters = plot_embedding_data(
 
 cluster_cmap = ax_clusters.collections[0].get_cmap()
 
-# %%
-# highlight certain clusters
-plot_embedding_data(
-    embedding=embedding,
-    embedding_name=embedding_name,
-    plot_type="clusters",
-    clusterer=clusterer,
-    set_kwargs=set_kwargs,
-    scatter_kwargs=scatter_kwargs,
-    masked_clusters=[-1, 5, 10, 12, 13],
-    # or use: highlighted_clusters
-    set_bad=dict(c="k", alpha=1),
-)
+# or: highlight certain clusters
+# plot_embedding_data(
+#     embedding=embedding,
+#     embedding_name=embedding_name,
+#     plot_type="clusters",
+#     clusterer=clusterer,
+#     set_kwargs=set_kwargs,
+#     scatter_kwargs=scatter_kwargs,
+#     masked_clusters=[-1, 5, 10, 12, 13],
+#     # or use: highlighted_clusters
+#     set_bad=dict(c="k", alpha=1),
+# )
 
 # %%
 # plot traces by cluster
@@ -239,10 +236,64 @@ axs_cluster_traces = plot_cluster_traces_pipeline(
     **trace_kwargs,
     df=all_breaths,
     fs=fs,
-    clusterer=clusterer,
+    cluster_labels=clusterer.labels_,
     select=select,
     cluster_cmap=cluster_cmap,
 )
+
+# %%
+# look at pre + post breath missing values
+
+pre_breaths = all_breaths.apply(
+    lambda x: loc_relative(*x.name, df=other_breaths, i=-1, field="breath_interpolated"),
+    axis=1,
+)
+
+post_breaths = all_breaths.apply(
+    lambda x: loc_relative(*x.name, df=other_breaths, i=1, field="breath_interpolated"),
+    axis=1,
+)
+
+ii_prepost_dne = (pre_breaths.isna() | post_breaths.isna())
+
+print(f"Cluster membership of breath segments where previous or next segment doesn't exist (usually: file boundaries).")
+pd.Series(clusterer.labels_[ii_prepost_dne]).value_counts().sort_index()
+
+# %%
+# remove those
+
+pre_breaths = pre_breaths.loc[~ii_prepost_dne]
+breaths = all_breaths.loc[~ii_prepost_dne, "breath_interpolated"]
+post_breaths = post_breaths.loc[~ii_prepost_dne]
+
+
+# %%
+# plot normalized-length traces w/ pre + post
+# warning: takes a few minutes
+
+axs = {k: plt.subplots()[1] for k in np.unique(clusterer.labels_)}
+
+for i, traces in enumerate((pre_breaths, breaths, post_breaths)):
+    trace_kwargs = dict(
+        trace_type="breath_interpolated",
+        aligned_to=None,
+        padding_kwargs={"aligned_at": i - 1},
+        set_kwargs={
+            **cluster_set_kwargs,
+            "xlim": [-1.05, 2.05],
+            "ylim": [-1.05, 6.5],
+        },
+    )
+
+    plot_cluster_traces_pipeline(
+        **trace_kwargs,
+        df=traces,
+        fs=fs,
+        cluster_labels=clusterer.labels_[~ii_prepost_dne],
+        select=select,
+        cluster_cmap=cluster_cmap,
+        axs = axs,
+    )
 
 
 # %%
