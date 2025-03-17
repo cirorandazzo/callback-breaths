@@ -29,10 +29,14 @@ from utils.umap import (
 # %%
 # load umap, all_breaths data
 
+parent = Path(rf"./data/umap-all_breaths")
 embedding_name = "embedding003-insp"
+
+# parent = Path(rf"./data/umap-all_breaths/v2")
+# embedding_name = "embedding035-exp"
+
 fs = 44100
 
-parent = Path(rf"./data/umap-all_breaths")
 # parent = Path(rf"M:\public\Ciro\callback-breaths\umap-all_breaths")
 
 all_breaths_path = parent.joinpath("all_breaths.pickle")
