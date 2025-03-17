@@ -23,6 +23,7 @@ import hdbscan
 from utils.umap import (
     plot_cluster_traces_pipeline,
     plot_embedding_data,
+    plot_violin_by_cluster
 )
 
 # %load_ext autoreload
@@ -192,10 +193,10 @@ cluster_set_kwargs = dict(
 # =========SELECTIONS=========#
 # which trace to plot : select one trace_kwargs dict
 
-trace_kwargs = dict(
-    trace_type="insps_interpolated",
-    set_kwargs={**cluster_set_kwargs, "xlim": [-0.05, 1.05]},
-)
+# trace_kwargs = dict(
+#     trace_type="insps_interpolated",
+#     set_kwargs={**cluster_set_kwargs, "xlim": [-0.05, 1.05]},
+# )
 
 # trace_kwargs = dict(
 #     trace_type="insps_unpadded",
@@ -283,52 +284,60 @@ ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 # %%
 # VIOLIN PLOT BY CLUSTER
 
-# data = duration_ms
-# set_kwargs = dict(
-#     ylabel="insp duration (ms)",
-#     title="insp duration",
-# )
+cluster_info = dict(cluster_labels=clusterer.labels_, cluster_cmap=cluster_cmap)
 
-# data = onsets_ms
-# set_kwargs = dict(
-#     title="insp onset (stim-aligned)",
-#     ylabel="insp onset (ms)",
-# )
-
-data = offsets_ms
-set_kwargs = dict(
-    title="insp offset (stim-aligned)",
-    ylabel="insp offset (ms)",
-    ylim=[-20, 510],
+# duration
+ax, parts = plot_violin_by_cluster(
+    data=duration_ms,
+    set_kwargs=dict(
+        ylabel="insp duration (ms)",
+        title="insp duration",
+    ),
+    **cluster_info,
 )
 
-# data = -1 * magnitudes["mag_insp"]  # note: load from insp_categories.py
-# set_kwargs = dict(
-#     title="insp magnitude",
-#     ylabel="insp magnitude (normalized)",
+# onset (stim-aligned)
+ax, parts = plot_violin_by_cluster(
+    data=onsets_ms,
+    set_kwargs=dict(
+        title="insp onset (stim-aligned)",
+        ylabel="insp onset (ms)",
+    ),
+    **cluster_info,
+)
+
+# offset (stim-aligned)
+ax, parts = plot_violin_by_cluster(
+    data=offsets_ms,
+    set_kwargs=dict(
+        title="insp offset (stim-aligned)",
+        ylabel="insp offset (ms)",
+        ylim=[-20, 510],
+    ),
+    **cluster_info,
+)
+
+# %%
+# MAGNITUDE VIOLIN PLOTS
+# note: load `magnitudes` from insp_categories.py
+
+# ax, parts = plot_violin_by_cluster(
+#     data=-1 * magnitudes["mag_insp"],
+#     set_kwargs=dict(
+#         title="insp magnitude",
+#         ylabel="insp magnitude (normalized)",
+#     )
+#     **cluster_info,
 # )
 
-# data = magnitudes["mag_exp"]  # note: load from insp_categories.py
-# set_kwargs = dict(
-#     title="exp magnitude (300ms post-insp)",
-#     ylabel="exp magnitude (normalized)",
+# ax, parts = plot_violin_by_cluster(
+#     data=magnitudes["mag_exp"],  # note: load from insp_categories.py
+#     set_kwargs=dict(
+#         title="exp magnitude (300ms post-insp)",
+#         ylabel="exp magnitude (normalized)",
+#     )
+#     **cluster_info,
 # )
-
-cluster_data = {
-    i_cluster: data[(clusterer.labels_ == i_cluster)]
-    for i_cluster in np.unique(clusterer.labels_)
-}
-
-labels, data = cluster_data.keys(), cluster_data.values()
-
-
-fig, ax = plt.subplots()
-
-ax.violinplot(data, showextrema=False)
-ax.set_xticks(ticks=range(1, 1 + len(labels)), labels=labels)
-
-ax.set(xlabel="cluster", **set_kwargs)
-
 
 # %%
 # PUTATIVE CALL PERCENTAGE

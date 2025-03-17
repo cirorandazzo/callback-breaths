@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 
 import hdbscan
 
@@ -18,6 +19,7 @@ from utils.umap import (
     loc_relative,
     plot_cluster_traces_pipeline,
     plot_embedding_data,
+    plot_violin_by_cluster,
 )
 
 # %load_ext autoreload
@@ -27,10 +29,14 @@ from utils.umap import (
 # %%
 # load umap, all_breaths data
 
+parent = Path(rf"./data/umap-all_breaths")
 embedding_name = "embedding003-insp"
+
+# parent = Path(rf"./data/umap-all_breaths/v2")
+# embedding_name = "embedding035-exp"
+
 fs = 44100
 
-parent = Path(rf"./data/umap-all_breaths")
 # parent = Path(rf"M:\public\Ciro\callback-breaths\umap-all_breaths")
 
 all_breaths_path = parent.joinpath("all_breaths.pickle")
@@ -100,6 +106,8 @@ ii_next = all_breaths.apply(
 )
 
 # %%
+# embedding plots
+
 # PUTATIVE CALL
 
 plot_embedding_data(
@@ -111,7 +119,6 @@ plot_embedding_data(
     set_kwargs=set_kwargs,
 )
 
-# %%
 # AMPLITUDE
 
 plot_embedding_data(
@@ -123,7 +130,6 @@ plot_embedding_data(
     set_kwargs=set_kwargs,
 )
 
-# %%
 # DURATION
 
 plot_embedding_data(
@@ -138,7 +144,6 @@ plot_embedding_data(
     cmap_name="viridis",
 )
 
-# %%
 # BREATHS SINCE LAST STIM
 
 plot_embedding_data(
@@ -151,7 +156,6 @@ plot_embedding_data(
     n_breaths=6,
 )
 
-# %%
 # BY BIRD
 
 plot_embedding_data(
@@ -189,18 +193,33 @@ ax_clusters = plot_embedding_data(
 
 cluster_cmap = ax_clusters.collections[0].get_cmap()
 
+# or: highlight certain clusters
+# plot_embedding_data(
+#     embedding=embedding,
+#     embedding_name=embedding_name,
+#     plot_type="clusters",
+#     clusterer=clusterer,
+#     set_kwargs=set_kwargs,
+#     scatter_kwargs=scatter_kwargs,
+#     masked_clusters=[-1, 5, 10, 12, 13],
+#     # or use: highlighted_clusters
+#     set_bad=dict(c="k", alpha=1),
+# )
+
 # %%
-# highlight certain clusters
-plot_embedding_data(
-    embedding=embedding,
-    embedding_name=embedding_name,
-    plot_type="clusters",
-    clusterer=clusterer,
-    set_kwargs=set_kwargs,
-    scatter_kwargs=scatter_kwargs,
-    masked_clusters=[-1, 5, 10, 12, 13],
-    set_bad=dict(c="k", alpha=1),
-)
+# 3d plot: embedding + duration
+
+embedding_plus = np.vstack([embedding.T, all_breaths.duration_s])
+
+x, height, z = np.split(embedding_plus, 3, axis=0)
+
+
+fig = plt.figure()
+ax = fig.add_subplot(projection="3d")
+
+ax.scatter(x, height, z, alpha=0.2, c=clusterer.labels_, cmap=cluster_cmap)
+
+ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 
 # %%
 # plot traces by cluster
@@ -237,49 +256,102 @@ axs_cluster_traces = plot_cluster_traces_pipeline(
     **trace_kwargs,
     df=all_breaths,
     fs=fs,
-    clusterer=clusterer,
+    cluster_labels=clusterer.labels_,
     select=select,
     cluster_cmap=cluster_cmap,
 )
+
+# %%
+# look at pre + post breath missing values
+
+pre_breaths = all_breaths.apply(
+    lambda x: loc_relative(*x.name, df=other_breaths, i=-1, field="breath_interpolated"),
+    axis=1,
+)
+
+post_ampl = all_breaths.apply(
+    lambda x: loc_relative(*x.name, df=other_breaths, i=1, field="breath_interpolated"),
+    axis=1,
+)
+
+ii_prepost_dne = (pre_breaths.isna() | post_ampl.isna())
+
+print(f"Cluster membership of breath segments where previous or next segment doesn't exist (usually: file boundaries).")
+pd.Series(clusterer.labels_[ii_prepost_dne]).value_counts().sort_index()
+
+# %%
+# remove those
+
+pre_breaths = pre_breaths.loc[~ii_prepost_dne]
+breaths = all_breaths.loc[~ii_prepost_dne, "breath_interpolated"]
+post_ampl = post_ampl.loc[~ii_prepost_dne]
+
+
+# %%
+# plot normalized-length traces w/ pre + post
+# warning: takes a few minutes
+
+axs = {k: plt.subplots()[1] for k in np.unique(clusterer.labels_)}
+
+for i, traces in enumerate((pre_breaths, breaths, post_ampl)):
+    trace_kwargs = dict(
+        trace_type="breath_interpolated",
+        aligned_to=None,
+        padding_kwargs={"aligned_at": i - 1},
+        set_kwargs={
+            **cluster_set_kwargs,
+            "xlim": [-1.05, 2.05],
+            "ylim": [-1.05, 6.5],
+        },
+    )
+
+    plot_cluster_traces_pipeline(
+        **trace_kwargs,
+        df=traces,
+        fs=fs,
+        cluster_labels=clusterer.labels_[~ii_prepost_dne],
+        select=select,
+        cluster_cmap=cluster_cmap,
+        axs = axs,
+    )
 
 
 # %%
 # VIOLIN PLOT BY CLUSTER
 
-data = all_breaths.duration_s
-violin_set_kwargs = dict(
-    title="duration",
-    ylabel="duration (s)",
-    ylim=[-0.1, 0.7],
+# duration
+ax, parts = plot_violin_by_cluster(
+    data = all_breaths.duration_s,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="duration",
+        ylabel="duration (s)",
+        ylim=[-0.1, 0.7],
+    ),
 )
 
-# data = all_breaths.amplitude
-# violin_set_kwargs = dict(
-#     title="amplitude",
-#     ylabel="amplitude (normalized)",
-# )
+# amplitude
+ax, parts = plot_violin_by_cluster(
+    data=all_breaths.amplitude,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="amplitude",
+        ylabel="amplitude (normalized)",
+    ),
+)
 
-# data = all_breaths.stims_index
-# violin_set_kwargs = dict(
-#     title="breath segs since stim",
-#     ylabel="breath segs since stim",
-# )
-
-cluster_data = {
-    i_cluster: data[(clusterer.labels_ == i_cluster) & data.notna()]
-    for i_cluster in np.unique(clusterer.labels_)
-}
-
-labels, data = cluster_data.keys(), cluster_data.values()
-
-
-fig, ax = plt.subplots()
-
-ax.violinplot(data, showextrema=False)
-ax.set_xticks(ticks=range(1, 1 + len(labels)), labels=labels)
-
-ax.set(xlabel="cluster", **violin_set_kwargs)
-
+# breaths since stim
+ax, parts = plot_violin_by_cluster(
+    data=all_breaths.stims_index,
+    cluster_labels=clusterer.labels_,
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="breath segs since stim",
+        ylabel="breath segs since stim",
+    )
+)
 
 # %%
 # PUTATIVE CALL PERCENTAGE
@@ -294,7 +366,7 @@ fig, ax = plt.subplots()
 
 clusters, heights = cluster_data.keys(), cluster_data.values()
 
-ax.bar(clusters, heights)
+ax.bar(clusters, heights, color=[cluster_cmap(cl) for cl in clusters])
 ax.set_xticks(list(clusters))
 
 ax.set(
@@ -315,7 +387,7 @@ fig, ax = plt.subplots()
 
 clusters, heights = cluster_data.keys(), cluster_data.values()
 
-ax.bar(clusters, heights)
+ax.bar(clusters, heights, color=[cluster_cmap(cl) for cl in clusters])
 ax.set_xticks(list(clusters))
 
 ax.set(
@@ -323,3 +395,83 @@ ax.set(
     ylabel="count (# trials)",
     title="cluster size",
 )
+
+# %%
+# scatter w histograms on axes (jointplot)
+
+post_ampl = all_breaths.apply(
+    lambda x: loc_relative(*x.name, df=other_breaths, i=1, field="amplitude"),
+    axis=1,
+)
+
+# Assuming `all_breaths`, `post_ampl`, and `clusterer` are already defined, as in your code.
+# Example of what the data and clusterer might look like:
+# clusterer.labels_ = np.random.randint(0, 3, size=len(all_breaths))  # Dummy cluster labels
+# all_breaths = pd.DataFrame({'amplitude': np.random.randn(100)})  # Example data
+# post_ampl = np.random.randn(100)  # Example transformed data
+
+# Set up the grid for the scatter plot and marginal histograms
+fig = plt.figure(figsize=(12, 8))
+gs = gridspec.GridSpec(2, 2, width_ratios=[1, 0.05], height_ratios=[0.05, 1])
+
+# Main scatter plot in the middle of the grid
+ax = fig.add_subplot(gs[1, 0])
+
+# Scatter plot
+scatter = ax.scatter(
+    x=all_breaths.amplitude,
+    y=post_ampl,
+    c=clusterer.labels_,
+    cmap=cluster_cmap,
+    **scatter_kwargs,
+)
+
+# Set titles and labels
+ax.set(title="amplitude, insp vs next exp", xlabel="insp amp", ylabel="exp amp")
+
+# Marginal histograms for each cluster
+unique_labels = np.unique(clusterer.labels_)
+
+# Marginal histograms
+ax_x_hist = fig.add_subplot(gs[0, 0], sharex=ax)
+ax_y_hist = fig.add_subplot(gs[1, 1], sharey=ax)
+
+hist_kwargs = dict(density=True)
+
+for label in unique_labels:
+    ii_cluster = (clusterer.labels_ == label) & (~post_ampl.isna())
+
+    hist, bin_edges = np.histogram(
+        all_breaths[ii_cluster].amplitude, bins=np.linspace(0, 1, 50), **hist_kwargs
+    )
+
+    ax_x_hist.stairs(
+        hist, bin_edges, label=f"Cluster {label}", color=cluster_cmap(label)
+    )
+
+    hist, bin_edges = np.histogram(
+        post_ampl[ii_cluster], bins=np.linspace(0, 7, 50), **hist_kwargs
+    )
+
+    ax_y_hist.stairs(
+        hist,
+        bin_edges,
+        label=f"Cluster {label}",
+        color=cluster_cmap(label),
+        orientation="horizontal",
+    )
+
+ax_x_hist.set_ylabel("Frequency")
+ax_y_hist.set_xlabel("Frequency")
+ax_x_hist.axis("off")
+ax_y_hist.axis("off")
+
+# Adjust colorbar to be outside plot (to the right)
+cbar_ax = fig.add_axes([1.05, 0.15, 0.02, 0.7])
+cbar = plt.colorbar(scatter, cax=cbar_ax)
+cbar.set_label("Cluster")
+
+# Adjust layout for better spacing
+plt.tight_layout()
+
+fig
