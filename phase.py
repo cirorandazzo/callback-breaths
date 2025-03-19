@@ -204,23 +204,48 @@ all_trials["phases"] = all_trials.apply(
 # %%
 # summary histogram of phases
 
-size = [1, 2]  # nrows, ncols
-fig = plt.figure(figsize=(12, 6))
 
-# dt histogram (lin)
-ax = fig.add_subplot(*size, 1)
+def stim_phase_subplot(all_trials, figsize=(12, 6), t_binwidth=0.01):
+    size = [1, 2]  # nrows, ncols
 
-dts = all_trials["dt_prestim_exp"]
-dts = dts.loc[~dts.isna()]
+    fig = plt.figure(figsize=figsize)
+    axs = []
 
-ax.hist(x=dts, bins=70)
-ax.set(title="last exp before stim", xlabel="delay (s)", ylabel="count")
+    # dt histogram (lin)
+    ax = fig.add_subplot(*size, 1)
+    axs.append(ax)
 
-# phase histogram (polar)
-ax = fig.add_subplot(*size, 2, projection="polar")
+    dts = all_trials["dt_prestim_exp"]
+    dts = dts.loc[~dts.isna()]
 
-phases = all_trials["phases"]
-phases = phases.loc[~phases.isna()]
+    ax.hist(x=dts, bins=np.arange(0, max(dts) + t_binwidth, t_binwidth))
+    ax.set(title="last exp before stim", xlabel="delay (s)", ylabel="count")
 
-ax.hist(x=phases, bins=20)
-ax.set_title("breath phase during stim_onset", pad=25)
+    # phase histogram (polar)
+    ax = fig.add_subplot(*size, 2, projection="polar")
+    axs.append(ax)
+
+    phases = all_trials["phases"]
+    phases = phases.loc[~phases.isna()]
+
+    ax.hist(x=phases, bins=20)
+    ax.set_title("breath phase during stim_onset", pad=25)
+
+    return fig, axs
+
+
+fig, axs = stim_phase_subplot(all_trials)
+fig.suptitle("all birds")
+axs[0].set(xlim=[0, 1.8])
+
+for bird, data in all_trials.groupby("birdname"):
+    fig, axs = stim_phase_subplot(data)
+    fig.suptitle(bird)
+
+    mean_exp_dur, mean_insp_dur = [
+        mean_duration_by_bird.loc[bird, type] for type in ["exp", "insp"]
+    ]
+
+    for a in [mean_exp_dur, mean_exp_dur + mean_insp_dur]:
+        axs[0].axvline(a, c="k")
+    axs[0].set(xlim=[0, 1.8], ylim=[0, 40])
