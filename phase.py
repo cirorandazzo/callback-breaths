@@ -11,7 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from utils.file import parse_birdname
-from utils.breath import get_kde_distribution
+from utils.breath import get_kde_distribution, get_phase
 
 # %load_ext autoreload
 # %autoreload 1
@@ -38,6 +38,8 @@ with open(all_trials_path, "rb") as f:
 print("all trials data loaded!")
 
 all_breaths["birdname"] = all_breaths.apply(lambda x: parse_birdname(x.name[0]), axis=1)
+
+all_trials["birdname"] = all_trials.apply(lambda x: parse_birdname(x.name[0]), axis=1)
 
 all_breaths
 
@@ -93,74 +95,132 @@ for bird in birds:
 
 
 # %%
-# attempt at phase a la ziggy
+# get last pre-stim exp for each stim trial
 
 
-def get_phase(t_nMin1Exp_to_Call, avgExpDur, avgInspDur):
+def get_prestim_exp(trial, exps):
     """
-    python implementation of ziggy phase computation code ("phase2.m")
+    Given a stim trial (ie, a row from `all_trials` df), return
+    some information about the directly preceding exp. Namely:
 
-    t_nMin1Exp_to_Call: time between preceding expiration & call [waiting to hear from ziggy what event is meant by "call"]
+    i_prestim_exp:
+    t_prestim_exp:
+    dt: time elapsed between exp onset & stim onset
     """
+    file, i_stim = trial.name
 
-    phase = None
+    # get stim onset & all exp onsets
+    t_stim_onset = trial["trial_start_s"]
+    file_exp_onsets = exps["start_s"].xs(level="wav_filename", key=file)
 
-    avgBreathDur = avgExpDur + avgInspDur
+    # select only pre-stim exps
+    pre_stim_exps = file_exp_onsets.loc[file_exp_onsets < t_stim_onset]
 
-    assert t_nMin1Exp_to_Call < (
-        2 * avgBreathDur
-    ), "algorithm only implmented for callT within 2 normal breath lengths!"
+    try:
+        # for directly preceding exp, get...
+        i_prestim_exp = pre_stim_exps.idxmax()  # calls_index (ie, use df.loc)
+        t_prestim_exp = pre_stim_exps.loc[i_prestim_exp]  # time of exp in file (s)
+        dt = t_stim_onset - t_prestim_exp  # time between exp & onset
+    except ValueError as e:
+        # usually: no exp before first stim
+        print(
+            f"Failed on stim {i_stim} in file {file}. ({len(pre_stim_exps)} pre-stim exps found.)"
+        )
+        i_prestim_exp, t_prestim_exp, dt = [pd.NA] * 3
 
-    t_nMin1Exp_to_Call = t_nMin1Exp_to_Call % avgBreathDur
+    return [i_prestim_exp, t_prestim_exp, dt]
 
-    # call happens before the expiration before the call... (ie, oops)
-    if t_nMin1Exp_to_Call < 0:
-        phase = 0.1
 
-    # call happens during this expiration
-    elif t_nMin1Exp_to_Call < avgExpDur:
-        # expiration is [0, pi]
-        phase = np.pi * (t_nMin1Exp_to_Call / avgExpDur)
+exps = all_breaths.loc[all_breaths["type"] == "exp"]
 
-    # call happens during inspiration after that
-    elif t_nMin1Exp_to_Call >= avgExpDur and t_nMin1Exp_to_Call < avgBreathDur:
-        # inspiration is [pi, 2pi]
-        phase = np.pi * (1 + (t_nMin1Exp_to_Call - avgExpDur) / avgInspDur)
+# pd.Series forces df output
+out = all_trials.apply(lambda x: pd.Series(get_prestim_exp(x, exps)), axis=1)
+out.columns = ["i_prestim_exp", "t_prestim_exp", "dt_prestim_exp"]
 
-    else:
-        ValueError("this really shouldn't happen...")
+# add prestim exp info to all_trials
+for col in ["i_prestim_exp", "dt_prestim_exp"]:
+    all_trials[col] = out[col]
+
+all_trials
+
+# %%
+# get mean breath duration by bird
+#
+# TODO: compute a similar df for spline-fit max
+
+
+def get_mean_durations(df_no_call_breaths):
+    means = {}
+    for type, breaths in df_no_call_breaths.groupby("type"):
+        means[type] = np.mean(breaths["duration_s"])
+
+    return means
+
+
+birds = no_call["birdname"].unique()
+
+mean_duration_by_bird = {
+    bird: get_mean_durations(no_call.loc[no_call["birdname"] == bird]) for bird in birds
+}
+mean_duration_by_bird["all"] = get_mean_durations(no_call)
+mean_duration_by_bird = pd.DataFrame(mean_duration_by_bird).T
+
+mean_duration_by_bird
+
+# %%
+# compute breath phase @ stim onsets
+
+
+def get_phase_wrapper(trial, mean_duration_by_bird):
+    t = trial["dt_prestim_exp"]
+    bird = trial["birdname"]
+
+    if pd.isna(t):
+        return t
+
+    mean_exp_dur, mean_insp_dur = [
+        mean_duration_by_bird.loc[bird, type] for type in ["exp", "insp"]
+    ]
+
+    try:
+        phase = get_phase(
+            t_nMin1Exp_to_Call=t,
+            avgExpDur=mean_exp_dur,
+            avgInspDur=mean_insp_dur,
+        )
+    except AssertionError:
+        # see assert in get_phase (if breath is too long)
+        phase = pd.NA
 
     return phase
 
 
-# %%
-# compare output to ziggy matlab code
-d = dict(delimiter=",")
-
-# load matlab data saved as csv
-phase = np.loadtxt("phase.csv", **d)
-nMin1Exps = np.loadtxt("exps.csv", **d).astype(int)
-avgExpDur, avgInspDur = np.loadtxt("avgs.csv", **d)
-
-# compute phase (call exp onsets aligned at preWin + 1 samples)
-preWin = 1000 * 32000 / 1000  # 1 second @ fs = 32000
-
-new_phase = [get_phase(preWin - exp, avgExpDur, avgInspDur) for exp in nMin1Exps]
-
-# summary plots
-fig, axs = plt.subplots(nrows=3)
-
-axs[0].hist(phase, bins=20, color=[0.7, 0.1, 0.1])
-axs[0].set(title="matlab phases", xlabel="phase (radians)")
-
-axs[1].hist(new_phase, bins=20, color=[0.1, 0.5, 0.1])
-axs[1].set(title="python phases", xlabel="phase (radians)")
-
-axs[2].hist(new_phase - phase, bins=20, color=[0.1, 0.3, 0.6])
-axs[2].set(
-    title="rd81pu26 spont; implementation comparsion",
-    xlabel="difference from matlab (radians)",
+all_trials["phases"] = all_trials.apply(
+    get_phase_wrapper,
+    args=[mean_duration_by_bird],
+    axis=1,
 )
 
-fig.tight_layout()
+# %%
+# summary histogram of phases
 
+size = [1, 2]  # nrows, ncols
+fig = plt.figure(figsize=(12, 6))
+
+# dt histogram (lin)
+ax = fig.add_subplot(*size, 1)
+
+dts = all_trials["dt_prestim_exp"]
+dts = dts.loc[~dts.isna()]
+
+ax.hist(x=dts, bins=70)
+ax.set(title="last exp before stim", xlabel="delay (s)", ylabel="count")
+
+# phase histogram (polar)
+ax = fig.add_subplot(*size, 2, projection="polar")
+
+phases = all_trials["phases"]
+phases = phases.loc[~phases.isna()]
+
+ax.hist(x=phases, bins=20)
+ax.set_title("breath phase during stim_onset", pad=25)
