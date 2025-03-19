@@ -205,7 +205,12 @@ all_trials["phases"] = all_trials.apply(
 # summary histogram of phases
 
 
-def stim_phase_subplot(all_trials, figsize=(12, 6), t_binwidth=0.01):
+def stim_phase_subplot(
+    all_trials,
+    figsize=(12, 6),
+    t_binwidth=0.01,
+    cumulative_polar=False,
+):
     size = [1, 2]  # nrows, ncols
 
     fig = plt.figure(figsize=figsize)
@@ -228,7 +233,11 @@ def stim_phase_subplot(all_trials, figsize=(12, 6), t_binwidth=0.01):
     phases = all_trials["phases"]
     phases = phases.loc[~phases.isna()]
 
-    ax.hist(x=phases, bins=20)
+    height, edges = np.histogram(phases, bins=20)
+    if cumulative_polar:
+        height = np.cumsum(height) / np.sum(height)
+
+    ax.stairs(height, edges, fill=False)
     ax.set_title("breath phase during stim_onset", pad=25)
 
     return fig, axs
@@ -239,7 +248,10 @@ fig.suptitle("all birds")
 axs[0].set(xlim=[0, 1.8])
 
 for bird, data in all_trials.groupby("birdname"):
-    fig, axs = stim_phase_subplot(data)
+    fig, axs = stim_phase_subplot(
+        data,
+        cumulative_polar=False,
+    )
     fig.suptitle(bird)
 
     mean_exp_dur, mean_insp_dur = [
@@ -248,4 +260,4 @@ for bird, data in all_trials.groupby("birdname"):
 
     for a in [mean_exp_dur, mean_exp_dur + mean_insp_dur]:
         axs[0].axvline(a, c="k")
-    axs[0].set(xlim=[0, 1.8], ylim=[0, 40])
+    axs[0].set(xlim=[0, 0.5], ylim=[0, 40])
