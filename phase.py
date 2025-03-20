@@ -14,7 +14,10 @@ from utils.file import parse_birdname
 from utils.breath import (
     get_kde_distribution,
     get_phase,
-    loc_relative,
+)
+from utils.umap import (
+    get_time_since_stim,
+    loc_relative, 
 )
 
 # %load_ext autoreload
@@ -199,7 +202,7 @@ def get_phase_wrapper(trial, mean_duration_by_bird):
     return phase
 
 
-all_trials["phases"] = all_trials.apply(
+all_trials["phase"] = all_trials.apply(
     get_phase_wrapper,
     args=[mean_duration_by_bird],
     axis=1,
@@ -215,6 +218,7 @@ def stim_phase_subplot(
     figsize=(12, 6),
     t_binwidth=0.01,
     cumulative_polar=False,
+    density=False,
     linear_set_kwargs=None,
     polar_set_title_kwargs=None,
     color="tab:blue",
@@ -230,7 +234,12 @@ def stim_phase_subplot(
 
     times = times.loc[~times.isna()]
 
-    ax.hist(x=times, bins=np.arange(0, max(times) + t_binwidth, t_binwidth), color=color)
+    ax.hist(
+        x=times,
+        bins=np.arange(0, max(times) + t_binwidth, t_binwidth),
+        color=color,
+        density=density,
+    )
     ax.set(**linear_set_kwargs)
 
     # phase histogram (polar)
@@ -239,12 +248,13 @@ def stim_phase_subplot(
 
     phases = phases.loc[~phases.isna()]
 
-    height, edges = np.histogram(phases, bins=20)
+    height, edges = np.histogram(phases, bins=20, density=density)
     if cumulative_polar:
         height = np.cumsum(height) / np.sum(height)
 
     ax.stairs(height, edges, fill=False, color=color)
     ax.set_title(**polar_set_title_kwargs)
+    ax.set_rmin(0)
 
     return fig, axs
 
@@ -254,7 +264,7 @@ pstk = dict(label="breath phase during stim_onset", pad=25)
 
 fig, axs = stim_phase_subplot(
     times=all_trials["dt_prestim_exp"],
-    phases=all_trials["phases"],
+    phases=all_trials["phase"],
     linear_set_kwargs=lsk,
     polar_set_title_kwargs=pstk,
 )
@@ -264,7 +274,7 @@ axs[0].set(xlim=[0, 1.8])
 for bird, data in all_trials.groupby("birdname"):
     fig, axs = stim_phase_subplot(
         times=data["dt_prestim_exp"],
-        phases=data["phases"],
+        phases=data["phase"],
         linear_set_kwargs=lsk,
         polar_set_title_kwargs=pstk,
         cumulative_polar=False,
@@ -342,7 +352,7 @@ def get_phase_wrapper_call_exps(trial, mean_duration_by_bird):
     return phase
 
 
-call_exps["phases"] = call_exps.apply(
+call_exps["phase"] = call_exps.apply(
     get_phase_wrapper_call_exps,
     args=[mean_duration_by_bird],
     axis=1,
@@ -362,7 +372,7 @@ pstk = dict(label="phase of call exp onset", pad=25)
 
 fig, axs = stim_phase_subplot(
     times=call_exps["dur_exp_nMin1"] + call_exps["dur_insp_nMin1"],
-    phases=call_exps["phases"],
+    phases=call_exps["phase"],
     linear_set_kwargs=lsk,
     polar_set_title_kwargs=pstk,
     color="c",
@@ -373,7 +383,7 @@ fig.suptitle("all birds")
 for bird, data in call_exps.groupby("birdname"):
     fig, axs = stim_phase_subplot(
         times=data["dur_exp_nMin1"] + data["dur_insp_nMin1"],
-        phases=data["phases"],
+        phases=data["phase"],
         linear_set_kwargs= {**lsk, "title": f"n-1 breath dur (n={len(data)} calls)"},
         polar_set_title_kwargs=pstk,
         cumulative_polar=False,
@@ -387,3 +397,59 @@ for bird, data in call_exps.groupby("birdname"):
 
     for a in [mean_exp_dur, mean_exp_dur + mean_insp_dur]:
         axs[0].axvline(a, c="k")
+
+
+# %%
+# call exps: time since stim
+
+call_exps["time_since_stim_s"] = call_exps.apply(
+    get_time_since_stim,
+    axis=1,
+    all_trials=all_trials,
+)
+
+t = call_exps["time_since_stim_s"]
+ph = call_exps["phase"]
+
+ii_good = ~t.isna() & ~ph.isna() 
+
+# select a particuar time range (call exp onset)
+# ii_good = ii_good & (t >= 2)
+# ii_good = ii_good & (t >= 1)  & (t <= 2)
+# ii_good = ii_good & (t >= 0) & (t <= 1)
+# ii_good = ii_good & (t >= 0.1) & (t <= 0.4)
+
+t = t[ii_good]
+ph = ph[ii_good]
+
+# PLOT 2D HIST
+fig, ax = plt.subplots()
+
+h, xedge, yedge, im = ax.hist2d(
+    t,
+    ph,
+    bins=30,
+    cmap="magma",
+)
+fig.colorbar(im, ax=ax, label="count")
+
+ax.set(xlabel="latency to call (s, since stim)", ylabel="call phase")
+
+# collapsed into hists
+lsk = dict(
+    xlabel="latency to call exp (s)",
+)
+pstk = dict(label="phase of call exp onset", pad=25)
+
+fig, axs = stim_phase_subplot(
+    times=t,
+    t_binwidth=0.05,
+    phases=ph,
+    linear_set_kwargs=lsk,
+    polar_set_title_kwargs=pstk,
+    density=True,
+    color="c",
+)
+fig.suptitle("all birds")
+
+# %%
