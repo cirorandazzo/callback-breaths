@@ -11,7 +11,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from utils.file import parse_birdname
-from utils.breath import get_kde_distribution, get_phase
+from utils.breath import (
+    get_kde_distribution,
+    get_phase,
+    loc_relative,
+)
 
 # %load_ext autoreload
 # %autoreload 1
@@ -206,10 +210,14 @@ all_trials["phases"] = all_trials.apply(
 
 
 def stim_phase_subplot(
-    all_trials,
+    times,
+    phases,
     figsize=(12, 6),
     t_binwidth=0.01,
     cumulative_polar=False,
+    linear_set_kwargs=None,
+    polar_set_title_kwargs=None,
+    color="tab:blue",
 ):
     size = [1, 2]  # nrows, ncols
 
@@ -220,36 +228,45 @@ def stim_phase_subplot(
     ax = fig.add_subplot(*size, 1)
     axs.append(ax)
 
-    dts = all_trials["dt_prestim_exp"]
-    dts = dts.loc[~dts.isna()]
+    times = times.loc[~times.isna()]
 
-    ax.hist(x=dts, bins=np.arange(0, max(dts) + t_binwidth, t_binwidth))
-    ax.set(title="last exp before stim", xlabel="delay (s)", ylabel="count")
+    ax.hist(x=times, bins=np.arange(0, max(times) + t_binwidth, t_binwidth), color=color)
+    ax.set(**linear_set_kwargs)
 
     # phase histogram (polar)
     ax = fig.add_subplot(*size, 2, projection="polar")
     axs.append(ax)
 
-    phases = all_trials["phases"]
     phases = phases.loc[~phases.isna()]
 
     height, edges = np.histogram(phases, bins=20)
     if cumulative_polar:
         height = np.cumsum(height) / np.sum(height)
 
-    ax.stairs(height, edges, fill=False)
-    ax.set_title("breath phase during stim_onset", pad=25)
+    ax.stairs(height, edges, fill=False, color=color)
+    ax.set_title(**polar_set_title_kwargs)
 
     return fig, axs
 
 
-fig, axs = stim_phase_subplot(all_trials)
+lsk = dict(title="last exp before stim", xlabel="delay (s)", ylabel="count")
+pstk = dict(label="breath phase during stim_onset", pad=25)
+
+fig, axs = stim_phase_subplot(
+    times=all_trials["dt_prestim_exp"],
+    phases=all_trials["phases"],
+    linear_set_kwargs=lsk,
+    polar_set_title_kwargs=pstk,
+)
 fig.suptitle("all birds")
 axs[0].set(xlim=[0, 1.8])
 
 for bird, data in all_trials.groupby("birdname"):
     fig, axs = stim_phase_subplot(
-        data,
+        times=data["dt_prestim_exp"],
+        phases=data["phases"],
+        linear_set_kwargs=lsk,
+        polar_set_title_kwargs=pstk,
         cumulative_polar=False,
     )
     fig.suptitle(bird)
@@ -261,3 +278,112 @@ for bird, data in all_trials.groupby("birdname"):
     for a in [mean_exp_dur, mean_exp_dur + mean_insp_dur]:
         axs[0].axvline(a, c="k")
     axs[0].set(xlim=[0, 0.5], ylim=[0, 40])
+
+
+# %%
+# get call exps
+
+ii_exp = all_breaths["type"] == "exp"
+ii_call = all_breaths["putative_call"]
+
+call_exps = all_breaths.loc[ii_exp & ii_call]
+
+print("Calls per bird:")
+call_exps.value_counts("birdname")
+
+# %%
+# get n-1 breath segment durations
+
+call_exps["dur_exp_nMin1"] = call_exps.apply(
+    lambda x: loc_relative(
+        *x.name,
+        df=all_breaths.loc[all_breaths["type"] == "exp"],
+        i=-2,
+        field="duration_s",
+    ),
+    axis=1,
+)
+
+call_exps["dur_insp_nMin1"] = call_exps.apply(
+    lambda x: loc_relative(
+        *x.name,
+        df=all_breaths.loc[all_breaths["type"] == "insp"],
+        i=-1,
+        field="duration_s",
+    ),
+    axis=1,
+)
+
+# %%
+# get call breath phases
+
+
+def get_phase_wrapper_call_exps(trial, mean_duration_by_bird):
+    t = trial["dur_exp_nMin1"] + trial["dur_insp_nMin1"]
+    bird = trial["birdname"]
+
+    if pd.isna(t):
+        return t
+
+    mean_exp_dur, mean_insp_dur = [
+        mean_duration_by_bird.loc[bird, type] for type in ["exp", "insp"]
+    ]
+
+    try:
+        phase = get_phase(
+            t_nMin1Exp_to_Call=t,
+            avgExpDur=mean_exp_dur,
+            avgInspDur=mean_insp_dur,
+        )
+    except AssertionError:
+        # see assert in get_phase (if breath is too long)
+        phase = pd.NA
+
+    return phase
+
+
+call_exps["phases"] = call_exps.apply(
+    get_phase_wrapper_call_exps,
+    args=[mean_duration_by_bird],
+    axis=1,
+)
+
+# %%
+# plot call exp phases
+
+lsk = dict(
+    title="time since last exp onset",
+    xlabel="inter exp interval (s)",
+    ylabel="count",
+    xlim=[0, 1],
+)
+pstk = dict(label="phase of call exp onset", pad=25)
+
+
+fig, axs = stim_phase_subplot(
+    times=call_exps["dur_exp_nMin1"] + call_exps["dur_insp_nMin1"],
+    phases=call_exps["phases"],
+    linear_set_kwargs=lsk,
+    polar_set_title_kwargs=pstk,
+    color="c",
+)
+fig.suptitle("all birds")
+
+
+for bird, data in call_exps.groupby("birdname"):
+    fig, axs = stim_phase_subplot(
+        times=data["dur_exp_nMin1"] + data["dur_insp_nMin1"],
+        phases=data["phases"],
+        linear_set_kwargs= {**lsk, "title": f"n-1 breath dur (n={len(data)} calls)"},
+        polar_set_title_kwargs=pstk,
+        cumulative_polar=False,
+        color="c"
+    )
+    fig.suptitle(bird)
+
+    mean_exp_dur, mean_insp_dur = [
+        mean_duration_by_bird.loc[bird, type] for type in ["exp", "insp"]
+    ]
+
+    for a in [mean_exp_dur, mean_exp_dur + mean_insp_dur]:
+        axs[0].axvline(a, c="k")
