@@ -43,8 +43,10 @@ print("all breaths data loaded!")
 
 clusters = {}  # will store cluster ids
 
+save_cluster_path = parent.joinpath("clusters.pickle")
+
 # %%
-# load insp
+# load insp embedding & cluster
 
 embedding_name = "embedding003-insp"
 umap_pickle_path = parent.joinpath(f"{embedding_name}.pickle")
@@ -70,6 +72,7 @@ clusterer_insp.fit(embedding_insp)
 clusters["insp"] = clusterer_insp.labels_
 
 # %%
+# load exp embedding & cluster
 
 exp_path = "./data/umap-all_breaths/v2/embedding035-exp-emb_only.pickle"
 
@@ -161,6 +164,18 @@ all_breaths["cluster_next"] = all_breaths.apply(
 )
 
 all_breaths["cluster"]
+
+# %%
+# pickle clusters
+
+if save_cluster_path is not None:
+    with open(save_cluster_path, "wb") as f:
+        pickle.dump(all_breaths["cluster"], f)
+
+    print(f"Saved pd.series of clusters to: {save_cluster_path}")
+
+else:
+    print("Skipping saving, `save_cluster_path` is None.")
 
 # %%
 # plot cluster mappings

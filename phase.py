@@ -9,20 +9,23 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
-from utils.file import parse_birdname
 from utils.breath import (
     get_kde_distribution,
     get_phase,
 )
+from utils.file import parse_birdname
 from utils.umap import (
     get_time_since_stim,
-    loc_relative, 
+    loc_relative,
+    plot_violin_by_cluster,
+    get_discrete_cmap
 )
 
 # %load_ext autoreload
 # %autoreload 1
-# %aimport utils.breath
+# %aimport utils.umap
 
 # %%
 # load umap, all_breaths data
@@ -49,6 +52,22 @@ all_breaths["birdname"] = all_breaths.apply(lambda x: parse_birdname(x.name[0]),
 all_trials["birdname"] = all_trials.apply(lambda x: parse_birdname(x.name[0]), axis=1)
 
 all_breaths
+
+# %%
+# load clusters
+
+clusters_path = "./data/umap-all_breaths/clusters.pickle"
+
+with open(clusters_path, "rb") as f:
+    clusters = pickle.load(f)
+
+all_breaths["cluster"] = clusters
+
+# get preceding cluster
+all_breaths["cluster_previous"] = all_breaths.apply(
+    lambda x: loc_relative(*x.name, all_breaths, field="cluster", i=-1),
+    axis=1,
+)
 
 # %%
 # select non-call breaths
@@ -296,7 +315,13 @@ for bird, data in all_trials.groupby("birdname"):
 ii_exp = all_breaths["type"] == "exp"
 ii_call = all_breaths["putative_call"]
 
-call_exps = all_breaths.loc[ii_exp & ii_call]
+# exclude song: if the prev exp was a call, it's probably song.
+ii_prev_call = all_breaths.apply(
+    lambda x: loc_relative(*x.name, all_breaths, field="putative_call", i=-2, default=False,),
+    axis=1,
+)
+
+call_exps = all_breaths.loc[ii_exp & ii_call & ~ii_prev_call]
 
 print("Calls per bird:")
 call_exps.value_counts("birdname")
@@ -453,3 +478,151 @@ fig, axs = stim_phase_subplot(
 fig.suptitle("all birds")
 
 # %%
+# do insp categories map nicely to phase?
+
+phases = call_exps["phase"]
+
+clusters = call_exps["cluster_previous"].map(
+    lambda x: int(x.replace("insp", "").strip()), na_action="ignore"
+)
+
+ii_good = ~phases.isna() & ~clusters.isna()
+
+cluster_cmap = get_discrete_cmap(min(clusters), max(clusters)+1, cmap_name="jet") 
+
+ax, parts = plot_violin_by_cluster(
+    data = np.array(phases.loc[ii_good]).astype(float),
+    cluster_labels=np.array(clusters.loc[ii_good]).astype(int),
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="phase (call exps only)",
+        ylabel="phase",
+    ),
+)
+
+# %%
+# do insp categories map nicely to latency?
+
+latencies = call_exps["time_since_stim_s"]
+
+clusters = call_exps["cluster_previous"].map(
+    lambda x: int(x.replace("insp", "").strip()), na_action="ignore"
+)
+
+ii_good = ~latencies.isna() & ~clusters.isna() & (latencies > 0)
+
+cluster_cmap = get_discrete_cmap(min(clusters), max(clusters)+1, cmap_name="jet") 
+
+ax, parts = plot_violin_by_cluster(
+    data=np.array(latencies.loc[ii_good]).astype(float),
+    cluster_labels=np.array(clusters.loc[ii_good]).astype(int),
+    cluster_cmap=cluster_cmap,
+    set_kwargs=dict(
+        title="call latency",
+        ylabel="latency of call exp (s since stim onset)",
+        ylim=[0, 1.5],
+    ),
+)
+
+
+# %%
+# plot traces sorted by insp cluster & phase
+
+n_bins = 6
+window_s = np.array([-0.75, 0.5])
+
+trace_kwargs = dict(
+    linewidth=0.1,
+    color="k",
+    alpha=0.4,
+)
+
+axline_kwarg = dict(
+    linewidth=1,
+    color="tab:blue",
+)
+
+trace_folder = Path("./data/cleaned_breath_traces")
+
+def get_wav_snippet(trial, window_fr, fs, trace_folder):
+    """
+    post time includes breath length
+
+    trace_folder should contain .npy copies of the .wav files with matching file names & no folder structure   
+    """
+
+    # get file
+    wav_file = trial.name[0]
+    np_file = trace_folder.joinpath(Path(wav_file).stem + ".npy")
+    breath = np.load(np_file)
+
+    # get indices
+    onset = int(fs * trial["start_s"])
+    ii = np.arange(*window_fr) + onset
+
+    try:
+        return breath[ii]
+    except IndexError:
+        return pd.NA
+
+
+window_fr = (fs * window_s).astype(int)
+x = np.linspace(*window_s, np.ptp(window_fr))
+
+phase_bins = np.linspace(0, 2, n_bins + 1) * np.pi
+
+figs = {}
+
+for insp_cluster, cluster_calls in call_exps.groupby("cluster_previous"):
+    phases = cluster_calls["phase"]
+
+    cols = 3
+    fig, axs = plt.subplots(
+        figsize=(11, 8.5),
+        ncols=cols,
+        nrows=np.ceil(n_bins / cols).astype(int),
+        sharex=True,
+        sharey=True,
+    )
+
+    for st_ph, en_ph, ax in zip(
+        phase_bins[:-1],
+        phase_bins[1:],
+        axs.ravel()[:n_bins],
+    ):
+        calls_in_phase = cluster_calls.loc[(phases > st_ph) & (phases <= en_ph)]
+        traces = calls_in_phase.apply(get_wav_snippet, axis=1, args=[window_fr, fs, trace_folder])
+
+        ax.axhline(**axline_kwarg)
+        ax.axvline(**axline_kwarg)
+
+        if len(traces) != 0:
+            traces = np.vstack(traces.loc[traces.notnull()])
+
+            ax.plot(x, traces.T, **trace_kwargs)
+            ax.plot(x, traces.mean(axis=0), color="r")
+
+        ax.set(
+            title=f"({st_ph:.2f},{en_ph:.2f}], n={traces.shape[0]}",
+            xlim=window_s,
+        )
+
+    fig.suptitle(f"Cluster: {insp_cluster} (n={len(cluster_calls)} call exps)")
+
+    figs[insp_cluster] = fig
+
+print("Done! Figures by cluster in dict `figs`")
+
+# %%
+# save phase/cluster traces as pdf
+
+pdf_filename = "./data/call_exps__cluster_phase-song_rejected.pdf"
+
+pdf_pgs = PdfPages(pdf_filename)
+
+for fig in list(figs.values()):
+    fig.savefig(pdf_pgs, format="pdf")
+
+pdf_pgs.close()
+
+print(f"Saved to {pdf_filename}")
