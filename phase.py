@@ -23,12 +23,15 @@ from utils.umap import (
     get_discrete_cmap
 )
 
+
 # %load_ext autoreload
 # %autoreload 1
 # %aimport utils.umap
 
 # %%
 # load umap, all_breaths data
+
+do_phase_wrap = False
 
 parent = Path(rf"./data/umap-all_breaths")
 fs = 44100
@@ -59,13 +62,16 @@ all_breaths
 clusters_path = "./data/umap-all_breaths/clusters.pickle"
 
 with open(clusters_path, "rb") as f:
-    clusters = pickle.load(f)
+    df_clusters = pickle.load(f)
 
-all_breaths["cluster"] = clusters
+for col in df_clusters.columns:
+    all_breaths[col] = df_clusters[col]
 
 # get preceding cluster
-all_breaths["cluster_previous"] = all_breaths.apply(
-    lambda x: loc_relative(*x.name, all_breaths, field="cluster", i=-1),
+
+for field in ["cluster", "UMAP0", "UMAP1"]:
+    all_breaths[f"{field}_previous"] = all_breaths.apply(
+    lambda x: loc_relative(*x.name, all_breaths, field=field, i=-1),
     axis=1,
 )
 
@@ -210,9 +216,10 @@ def get_phase_wrapper(trial, mean_duration_by_bird):
 
     try:
         phase = get_phase(
-            t_nMin1Exp_to_Call=t,
+            breathDur=t,
             avgExpDur=mean_exp_dur,
             avgInspDur=mean_insp_dur,
+            wrap=do_phase_wrap,
         )
     except AssertionError:
         # see assert in get_phase (if breath is too long)
@@ -240,6 +247,7 @@ def stim_phase_subplot(
     density=False,
     linear_set_kwargs=None,
     polar_set_title_kwargs=None,
+    polar_stair_kwargs=None,
     color="tab:blue",
 ):
     size = [1, 2]  # nrows, ncols
@@ -271,7 +279,11 @@ def stim_phase_subplot(
     if cumulative_polar:
         height = np.cumsum(height) / np.sum(height)
 
-    ax.stairs(height, edges, fill=False, color=color)
+    if polar_stair_kwargs is None:
+        polar_stair_kwargs = {}
+    polar_stair_kwargs = {**{"color": color}, **polar_stair_kwargs}
+
+    ax.stairs(height, edges, fill=False, **polar_stair_kwargs)
     ax.set_title(**polar_set_title_kwargs)
     ax.set_rmin(0)
 
@@ -366,9 +378,10 @@ def get_phase_wrapper_call_exps(trial, mean_duration_by_bird):
 
     try:
         phase = get_phase(
-            t_nMin1Exp_to_Call=t,
+            breathDur=t,
             avgExpDur=mean_exp_dur,
             avgInspDur=mean_insp_dur,
+            wrap=do_phase_wrap,
         )
     except AssertionError:
         # see assert in get_phase (if breath is too long)
@@ -472,6 +485,7 @@ fig, axs = stim_phase_subplot(
     phases=ph,
     linear_set_kwargs=lsk,
     polar_set_title_kwargs=pstk,
+    # polar_stair_kwargs=dict(hatch="o"),
     density=True,
     color="c",
 )
@@ -482,17 +496,17 @@ fig.suptitle("all birds")
 
 phases = call_exps["phase"]
 
-clusters = call_exps["cluster_previous"].map(
+df_clusters = call_exps["cluster_previous"].map(
     lambda x: int(x.replace("insp", "").strip()), na_action="ignore"
 )
 
-ii_good = ~phases.isna() & ~clusters.isna()
+ii_good = ~phases.isna() & ~df_clusters.isna()
 
-cluster_cmap = get_discrete_cmap(min(clusters), max(clusters)+1, cmap_name="jet") 
+cluster_cmap = get_discrete_cmap(min(df_clusters), max(df_clusters)+1, cmap_name="jet") 
 
 ax, parts = plot_violin_by_cluster(
     data = np.array(phases.loc[ii_good]).astype(float),
-    cluster_labels=np.array(clusters.loc[ii_good]).astype(int),
+    cluster_labels=np.array(df_clusters.loc[ii_good]).astype(int),
     cluster_cmap=cluster_cmap,
     set_kwargs=dict(
         title="phase (call exps only)",
@@ -505,17 +519,17 @@ ax, parts = plot_violin_by_cluster(
 
 latencies = call_exps["time_since_stim_s"]
 
-clusters = call_exps["cluster_previous"].map(
+df_clusters = call_exps["cluster_previous"].map(
     lambda x: int(x.replace("insp", "").strip()), na_action="ignore"
 )
 
-ii_good = ~latencies.isna() & ~clusters.isna() & (latencies > 0)
+ii_good = ~latencies.isna() & ~df_clusters.isna() & (latencies > 0)
 
-cluster_cmap = get_discrete_cmap(min(clusters), max(clusters)+1, cmap_name="jet") 
+cluster_cmap = get_discrete_cmap(min(df_clusters), max(df_clusters)+1, cmap_name="jet") 
 
 ax, parts = plot_violin_by_cluster(
     data=np.array(latencies.loc[ii_good]).astype(float),
-    cluster_labels=np.array(clusters.loc[ii_good]).astype(int),
+    cluster_labels=np.array(df_clusters.loc[ii_good]).astype(int),
     cluster_cmap=cluster_cmap,
     set_kwargs=dict(
         title="call latency",
@@ -528,7 +542,7 @@ ax, parts = plot_violin_by_cluster(
 # %%
 # plot traces sorted by insp cluster & phase
 
-n_bins = 6
+n_bins = 12
 window_s = np.array([-0.75, 0.5])
 
 trace_kwargs = dict(
@@ -569,14 +583,14 @@ def get_wav_snippet(trial, window_fr, fs, trace_folder):
 window_fr = (fs * window_s).astype(int)
 x = np.linspace(*window_s, np.ptp(window_fr))
 
-phase_bins = np.linspace(0, 2, n_bins + 1) * np.pi
+phase_bins = np.linspace(0, 4, n_bins + 1) * np.pi
 
 figs = {}
 
 for insp_cluster, cluster_calls in call_exps.groupby("cluster_previous"):
     phases = cluster_calls["phase"]
 
-    cols = 3
+    cols = 4
     fig, axs = plt.subplots(
         figsize=(11, 8.5),
         ncols=cols,
@@ -616,7 +630,7 @@ print("Done! Figures by cluster in dict `figs`")
 # %%
 # save phase/cluster traces as pdf
 
-pdf_filename = "./data/call_exps__cluster_phase-song_rejected.pdf"
+pdf_filename = "./data/call_exps__cluster_phase-no_song-no_wrap.pdf"
 
 pdf_pgs = PdfPages(pdf_filename)
 
