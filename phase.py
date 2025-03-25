@@ -640,3 +640,71 @@ for fig in list(figs.values()):
 pdf_pgs.close()
 
 print(f"Saved to {pdf_filename}")
+
+# %%
+# insp cluster composition (bird)
+
+# by cluster
+fig, axs = plt.subplots(nrows=4, ncols=4, figsize=(9, 8.5))
+
+for (insp_cluster, cluster_calls), ax in zip(
+    call_exps.groupby("cluster_previous"), axs.ravel()
+):
+
+    ax.set_aspect("equal")
+
+    count = cluster_calls["birdname"].value_counts().sort_index()
+
+    ax.pie(x=count, labels=count.index, labeldistance=None)
+    ax.set(title=f"cluster {insp_cluster}\n(n={len(cluster_calls)} calls)")
+
+axs.ravel()[3].legend(bbox_to_anchor=(1.1, 1))
+fig.tight_layout()
+
+# all calls
+fig, ax = plt.subplots()
+
+ax.set_aspect("equal")
+
+count = call_exps["birdname"].value_counts().sort_index()
+
+ax.pie(x=count, labels=count.index, labeldistance=None)
+
+ax.set(title=f"all calls\n(n={len(call_exps)} calls)")
+ax.legend(bbox_to_anchor=(1.1, 1))
+
+
+# %%
+# 3d plot: embedding + phase
+
+
+def strip_cluster(c):
+    if c is None:
+        cl = -1
+    else:
+        cl = int(c.split("insp")[1])
+    return cl
+
+
+fields = ["UMAP0_previous", "UMAP1_previous", "phase"]
+
+ii_nans = call_exps[fields].isna().apply(any, axis=1)
+
+data = [call_exps.loc[~ii_nans, f] for f in fields]
+colors = [strip_cluster(c) for c in call_exps.loc[~ii_nans, "cluster_previous"]]
+
+fig = plt.figure()
+ax = fig.add_subplot(projection="3d")
+
+ax.scatter(
+    *data,
+    alpha=0.7,
+    c=colors,
+    cmap=cluster_cmap,
+)
+
+ax.set(
+    xlabel=fields[0],
+    ylabel=fields[1],
+    zlabel=fields[2],
+)
