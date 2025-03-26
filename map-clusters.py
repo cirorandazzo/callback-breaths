@@ -42,9 +42,12 @@ with open(all_breaths_path, "rb") as f:
 print("all breaths data loaded!")
 
 clusters = {}  # will store cluster ids
+embedding = {} # will store embeddings
+
+save_cluster_path = parent.joinpath("clusters.pickle")
 
 # %%
-# load insp
+# load insp embedding & cluster
 
 embedding_name = "embedding003-insp"
 umap_pickle_path = parent.joinpath(f"{embedding_name}.pickle")
@@ -54,7 +57,7 @@ with open(umap_pickle_path, "rb") as f:
     model = pickle.load(f)
 print("umap embedding loaded!")
 
-embedding_insp = model.embedding_
+embedding["insp"] = model.embedding_
 del model
 
 clusterer_insp = hdbscan.HDBSCAN(
@@ -66,16 +69,17 @@ clusterer_insp = hdbscan.HDBSCAN(
     cluster_selection_epsilon=0.2,
 )
 
-clusterer_insp.fit(embedding_insp)
+clusterer_insp.fit(embedding["insp"])
 clusters["insp"] = clusterer_insp.labels_
 
 # %%
+# load exp embedding & cluster
 
 exp_path = "./data/umap-all_breaths/v2/embedding035-exp-emb_only.pickle"
 
 print("loading umap embedding...")
 with open(exp_path, "rb") as f:
-    embedding_exp = pickle.load(f)
+    embedding["exp"] = pickle.load(f)
 print("umap embedding loaded!")
 
 clusterer_exp = hdbscan.HDBSCAN(
@@ -87,7 +91,7 @@ clusterer_exp = hdbscan.HDBSCAN(
     cluster_selection_epsilon=0.5,
 )
 
-clusterer_exp.fit(embedding_exp)
+clusterer_exp.fit(embedding["exp"])
 clusters["exp"] = clusterer_exp.labels_
 
 
@@ -106,7 +110,7 @@ set_kwargs = dict(
 )
 
 ax_clusters_insp = plot_embedding_data(
-    embedding=embedding_insp,
+    embedding=embedding["insp"],
     embedding_name=embedding_name,
     plot_type="clusters",
     clusterer=clusterer_insp,
@@ -116,7 +120,7 @@ ax_clusters_insp = plot_embedding_data(
 )
 
 ax_clusters_exp = plot_embedding_data(
-    embedding=embedding_exp,
+    embedding=embedding["exp"],
     embedding_name=embedding_name,
     plot_type="clusters",
     clusterer=clusterer_exp,
@@ -146,6 +150,9 @@ for label, rows in all_breaths.set_index("type", append=True).groupby(level="typ
         f"{label}{int(cl):2d}" for cl in clusters[label]
     ]
 
+    for umap_dim in range(embedding[label].shape[1]):
+        all_breaths.loc[rows.index, f"UMAP{umap_dim}"] = embedding[label][:, umap_dim]
+
 all_breaths["cluster_prev"] = all_breaths.apply(
     lambda x: loc_relative(
         *x.name, df=all_breaths, i=-1, field="cluster", default=pd.NA
@@ -160,7 +167,19 @@ all_breaths["cluster_next"] = all_breaths.apply(
     axis=1,
 )
 
-all_breaths["cluster"]
+all_breaths.loc[:, ["cluster", "cluster_prev", "cluster_next", "UMAP0", "UMAP1"]]
+
+# %%
+# pickle clusters
+
+if save_cluster_path is not None:
+    with open(save_cluster_path, "wb") as f:
+        pickle.dump(all_breaths.loc[:, ["cluster", "UMAP0", "UMAP1"]], f)
+
+    print(f"Saved pd.series of clusters to: {save_cluster_path}")
+
+else:
+    print("Skipping saving, `save_cluster_path` is None.")
 
 # %%
 # plot cluster mappings
