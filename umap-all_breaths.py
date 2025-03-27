@@ -1,6 +1,7 @@
 # %%
-# breaths-umap_all.py
+# umap-all_breaths.py
 #
+# analyzing umap on all breaths (implemented for either insp or exp)
 
 from pathlib import Path
 import pickle

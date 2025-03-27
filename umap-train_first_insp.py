@@ -1,6 +1,7 @@
 # %%
+# umap-train_first_insp.py
 #
-# insp categories
+# first pass at umap, using only the first inspiration of each callback trial
 #
 # idea: what's the basis set of inspiratory patterns?
 # (1) look at distribution of where first insp occurs (should be random)
@@ -440,7 +441,7 @@ plt.show()
 
 # %%
 # look at traces for a range of exp magnitudes
-# 
+#
 # amplitude in exp_window_ms after first inspiration
 
 exp_window_fr = (300 / 1000) * fs

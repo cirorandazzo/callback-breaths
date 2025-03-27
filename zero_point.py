@@ -1,5 +1,9 @@
 # %%
+# zero_point.py
 #
+# many attempts at addressing drift in respiratory trace over the course of a file (ie, non-constant zero point).
+#
+# I wound up giving up on those files, since it was only the case in 1/4 birds and I didn't find an especially satisfactory resolution.
 
 import glob
 import json

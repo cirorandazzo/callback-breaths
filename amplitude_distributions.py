@@ -1,4 +1,8 @@
 # %%
+# amplitude_distributions.py
+#
+# plot & fit breath amplitude distribution for many files; important step in determining zero point algorithm
+
 import glob
 import json
 import os

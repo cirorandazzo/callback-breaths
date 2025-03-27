@@ -7,7 +7,7 @@ Code for analyzing respiratory traces during callback experiments in the Brainar
 ### Data Preprocessing
 
 - `make_breath_dfs_plots.py`: make dataframe for cbpt metadata & `kde-threshold` plots
-- `preprocess_breath_traces.py`: process wav files to center and normalize breath traces; save as npy arrays
+- `preprocess_breath_traces.py`: process wav files to filter, center, and normalize breath traces, saving as npy arrays
   - TODO: edit implementations to load & slice from these, rather than (1) making enormous dataframes or (2) reprocessing from raw wav file as needed. (UMAP stuff especially!)
 - `phase.py`: initial implementation of phase, some descriptive stuff, and first pass at tying into UMAP clusters
 

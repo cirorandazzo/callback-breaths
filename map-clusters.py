@@ -2,7 +2,7 @@
 # map-clusters.py
 #
 # how do inspiratory & expiratory clusters map onto each other?
-# 
+# ie, which expirations come from which inspirations? (and v/v)
 
 from pathlib import Path
 import pickle

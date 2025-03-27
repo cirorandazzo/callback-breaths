@@ -1,4 +1,8 @@
 # %%
+# plot_spectrograms.py
+#
+# spectrogram plots for cbpt
+
 import glob
 import json
 import os

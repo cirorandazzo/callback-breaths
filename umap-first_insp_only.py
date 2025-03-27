@@ -1,8 +1,9 @@
 # %%
-# breaths-umap.py
+# umap-first_insp_only.py
+#
+# First pass at umap, using only the first inspiration of each callback trial
 #
 # Trying to tease out categories of breath responses in callback experiments from a UMAP embedding
-#
 
 import glob
 from itertools import product
@@ -230,7 +231,7 @@ buffer_fr = int(buffer_ms * fs / 1000) + 1
 all_insps = np.vstack(all_trials["ii_first_insp"]).T
 window = np.array((all_insps.min() - buffer_fr, all_insps.max() + buffer_fr))
 
-# trace_kwargs = dict(  # this was an accident lol 
+# trace_kwargs = dict(  # this was an accident lol
 #     trace_type="breath_first_cycle",
 #     aligned_to="insp onset",
 #     padding_kwargs=dict(
