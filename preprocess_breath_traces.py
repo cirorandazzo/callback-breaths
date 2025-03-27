@@ -1,7 +1,8 @@
 # %%
-# clean_wavs.py
+# preprocess_breath_traces.py
 #
-# filt, zero, norm
+# process wav files to filter, center, and normalize breath traces,
+# saving as npy arrays
 
 from pathlib import Path
 

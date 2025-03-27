@@ -1,5 +1,7 @@
 # %%
+# plot_rolling_min_subtracted.py
 #
+# lowpass_trace-rolling_min_seg plots for cbpt
 
 import json
 import glob

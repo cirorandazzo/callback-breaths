@@ -1,6 +1,7 @@
 # %%
-# all_trials-columns.py
+# umap-input_walkthrough.py
 #
+# plot examples of the types of traces used for umap input
 
 import glob
 from itertools import product

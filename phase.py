@@ -1,6 +1,7 @@
 # %%
 # phase.py
 #
+# initial implementation of phase, some descriptive stuff, and first pass at tying into UMAP clusters
 
 from pathlib import Path
 import pickle

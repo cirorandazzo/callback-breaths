@@ -1,7 +1,9 @@
 # %%
-# insp categories: all breaths
+# umap-train_all.py
 #
-# insp_categories.py uses only first insp, from dataframe all_trials
+# analyzing umap on all breaths (implemented for either insp or exp)
+# 
+# umap-train_first_insp.py uses only first insp, from dataframe all_trials
 # this will use all breaths, from dataframe all_breaths
 #
 # idea: what's the basis set of inspiratory patterns?
