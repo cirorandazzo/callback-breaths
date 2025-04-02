@@ -16,6 +16,7 @@ import hdbscan
 
 from utils.file import parse_birdname
 from utils.umap import (
+    get_call_exps,
     get_time_since_stim,
     loc_relative,
     plot_cluster_traces_pipeline,
@@ -99,7 +100,7 @@ all_breaths["time_since_stim_s"] = all_breaths.apply(
 type = embedding_name.split("-")[-1]
 
 if type == "call_exp":
-    ii_type = (all_breaths["type"] == "exp") & (all_breaths["putative_call"]) 
+    ii_type = get_call_exps(all_breaths, return_index=True)
 else:
     ii_type = all_breaths["type"] == type
 
@@ -107,9 +108,8 @@ other_breaths = all_breaths.loc[~ii_type]
 all_breaths = all_breaths.loc[ii_type]
 
 # %%
-# indices for next breath
+# indices for next breath: example usage
 
-# example usage
 ii_next = all_breaths.apply(
     lambda x: loc_relative(*x.name, df=other_breaths, i=1, field="index"),
     axis=1,

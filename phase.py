@@ -21,7 +21,8 @@ from utils.umap import (
     get_time_since_stim,
     loc_relative,
     plot_violin_by_cluster,
-    get_discrete_cmap
+    get_call_exps,
+    get_discrete_cmap,
 )
 
 
@@ -34,7 +35,7 @@ from utils.umap import (
 
 do_phase_wrap = False
 
-parent = Path(rf"./data/umap-all_breaths")
+parent = Path(rf"./data/umap-all_breaths/v3")
 fs = 44100
 all_breaths_path = parent.joinpath("all_breaths.pickle")
 all_trials_path = Path(r"./data/breath_figs-spline_fit/all_trials.pickle")
@@ -60,7 +61,7 @@ all_breaths
 # %%
 # load clusters
 
-clusters_path = "./data/umap-all_breaths/clusters.pickle"
+clusters_path = parent.joinpath("clusters.pickle")
 
 with open(clusters_path, "rb") as f:
     df_clusters = pickle.load(f)
@@ -325,16 +326,10 @@ for bird, data in all_trials.groupby("birdname"):
 # %%
 # get call exps
 
-ii_exp = all_breaths["type"] == "exp"
-ii_call = all_breaths["putative_call"]
-
-# exclude song: if the prev exp was a call, it's probably song.
-ii_prev_call = all_breaths.apply(
-    lambda x: loc_relative(*x.name, all_breaths, field="putative_call", i=-2, default=False,),
-    axis=1,
-)
-
-call_exps = all_breaths.loc[ii_exp & ii_call & ~ii_prev_call]
+# NOTE: this code didn't consider call status of subsequent call before
+# refactor; so, first syll was presumably included. refactor considers
+# the next call & excludes these when exclude_song = True
+call_exps = get_call_exps(all_breaths, exclude_song=True)
 
 print("Calls per bird:")
 call_exps.value_counts("birdname")
@@ -631,7 +626,7 @@ print("Done! Figures by cluster in dict `figs`")
 # %%
 # save phase/cluster traces as pdf
 
-pdf_filename = "./data/call_exps__cluster_phase-no_song-no_wrap.pdf"
+pdf_filename = "./data/call_exps__cluster_phase-no_song_pre_next-no_wrap.pdf"
 
 pdf_pgs = PdfPages(pdf_filename)
 
