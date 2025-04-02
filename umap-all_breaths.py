@@ -21,6 +21,7 @@ from utils.umap import (
     plot_cluster_traces_pipeline,
     plot_embedding_data,
     plot_violin_by_cluster,
+    prepare_clusters_axs_dict,
 )
 
 # %load_ext autoreload
@@ -30,8 +31,11 @@ from utils.umap import (
 # %%
 # load umap, all_breaths data
 
-parent = Path(rf"./data/umap-all_breaths")
-embedding_name = "embedding003-insp"
+parent = Path(rf"./data/umap-all_breaths/v4")
+embedding_name = "embedding000-call_exp"
+
+# parent = Path(rf"./data/umap-all_breaths")
+# embedding_name = "embedding003-insp"
 
 # parent = Path(rf"./data/umap-all_breaths/v2")
 # embedding_name = "embedding035-exp"
@@ -92,7 +96,12 @@ all_breaths["time_since_stim_s"] = all_breaths.apply(
 
 # %%
 # take only type in embedding
-ii_type = all_breaths["type"] == embedding_name.split("-")[-1]
+type = embedding_name.split("-")[-1]
+
+if type == "call_exp":
+    ii_type = (all_breaths["type"] == "exp") & (all_breaths["putative_call"]) 
+else:
+    ii_type = all_breaths["type"] == type
 
 other_breaths = all_breaths.loc[~ii_type]
 all_breaths = all_breaths.loc[ii_type]
@@ -173,7 +182,7 @@ plot_embedding_data(
 
 clusterer = hdbscan.HDBSCAN(
     metric="l1",
-    min_cluster_size=130,
+    min_cluster_size=75,
     min_samples=1,
     cluster_selection_method="leaf",
     gen_min_span_tree=True,
@@ -181,6 +190,8 @@ clusterer = hdbscan.HDBSCAN(
 )
 
 clusterer.fit(embedding)
+
+all_breaths["cluster"] = clusterer.labels_
 
 ax_clusters = plot_embedding_data(
     embedding=embedding,
@@ -225,9 +236,22 @@ ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 # %%
 # plot traces by cluster
 
+figs, axs, axs_dict = prepare_clusters_axs_dict(
+    labels=np.unique(clusterer.labels_),
+    nrows=3,
+    ncols=5,
+    sharex=True,
+    sharey=True,
+    figsize=(13, 5.45),
+)
+
 cluster_set_kwargs = dict(
-    ylabel="amplitude",
-    ylim=[-1.05, 0.05],
+    # ylabel="amplitude",
+    ylim=[-0.05, 1.05],
+    # ylim=[-0.05, 7.05],
+    ylabel=None,
+    xlabel=None,
+    xlim=[-10, 400],
 )
 
 # =========SELECTIONS=========#
@@ -260,7 +284,10 @@ axs_cluster_traces = plot_cluster_traces_pipeline(
     cluster_labels=clusterer.labels_,
     select=select,
     cluster_cmap=cluster_cmap,
+    axs=axs_dict,
 )
+
+figs[0].tight_layout()
 
 # %%
 # look at pre + post breath missing values
@@ -331,6 +358,7 @@ ax, parts = plot_violin_by_cluster(
         ylim=[-0.1, 0.7],
     ),
 )
+ax.set(ylim=[0, None])
 
 # amplitude
 ax, parts = plot_violin_by_cluster(
@@ -396,6 +424,30 @@ ax.set(
     ylabel="count (# trials)",
     title="cluster size",
 )
+
+# %%
+# BIRD COMPOSITION
+
+all_breaths["birdname"] = all_breaths.apply(lambda x: parse_birdname(x.name[0]), axis=1)
+
+# by cluster
+fig, axs = plt.subplots(nrows=4, ncols=4, figsize=(9, 8.5))
+
+for (cluster, cluster_calls), ax in zip(
+    all_breaths.groupby("cluster"), axs.ravel()
+):
+
+    ax.set_aspect("equal")
+
+    count = cluster_calls["birdname"].value_counts().sort_index()
+
+    ax.pie(x=count, labels=count.index, labeldistance=None)
+    ax.set(title=f"cluster {cluster}\n(n={len(cluster_calls)} calls)")
+
+axs.ravel()[3].legend(bbox_to_anchor=(1.1, 1))
+fig.tight_layout()
+
+ax.legend(bbox_to_anchor=(1.1, 1))
 
 # %%
 # scatter w histograms on axes (jointplot)

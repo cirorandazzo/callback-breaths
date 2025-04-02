@@ -74,11 +74,13 @@ for wav_filename, file_breaths in all_breaths.groupby("wav_filename"):
     assert len(zero_point) == 1
     zero_point = zero_point[0]
 
-    breath = AudioObject.from_wav(wav_filename, channels=1, b=b, a=a).audio_filt
+    ao = AudioObject.from_wav(wav_filename, channels=1, b=b, a=a)
 
-    #  map [biggest_insp, zero_point] --> [-1, 0]
+    breath = ao.audio.astype(float)
+
+    # map [biggest_insp, zero_point] --> [-1, 0]
     breath -= zero_point
-    breath /= np.abs(breath.min())
+    breath /= np.abs(ao.audio_filt.min())
 
     all_breaths.loc[file_breaths.index, "breath_norm"] = file_breaths.apply(
         lambda x: get_breath_seg(*x[["start_s", "end_s"]], breath, fs),
@@ -200,7 +202,7 @@ all_breaths["breath_interpolated"] = all_breaths["breath_norm"].apply(
 # %%
 # prep umap parameters
 
-save_folder = pathlib.Path("M:\public\Ciro\callback-breaths\umap-all_breaths")
+save_folder = pathlib.Path(r"./data/umap-all_breaths")
 
 metrics=[
         "cosine",
@@ -213,6 +215,8 @@ datasets = {
     for k in ["insp", "exp"]
 }
 
+datasets["call_exp"] = np.vstack(all_breaths.loc[(all_breaths["putative_call"]) & (all_breaths["type"] == "exp"), "breath_interpolated"])
+
 # precompute distance metrics for speed
 # distances = {
 #     breath_type: {metric: pdist(breath_mat, metric=metric) for metric in metrics}
@@ -220,7 +224,8 @@ datasets = {
 # }
 
 umap_params = dict(
-    breath_type=["insp"],  # , "exp"],
+    breath_type=["call_exp"],
+    # breath_type=["insp", "exp"],
     n_neighbors=[5, 10, 100, 500],
     min_dist=[0.001, 0.01, 0.1, 0.5],
     metric=metrics,
@@ -306,8 +311,8 @@ for i, condition in enumerate(conditions):
         embedding[:, 1],
         s=4,
         alpha=0.8,
-        c=n_since_stim,
-        cmap="viridis",
+        # c=n_since_stim,
+        # cmap="viridis",
     )
 
     ax.set(
@@ -316,18 +321,15 @@ for i, condition in enumerate(conditions):
         title=umap_name,
     )
 
-    cbar = fig.colorbar(sc, label="breaths since last stim")
+    # cbar = fig.colorbar(sc, label="breaths since last stim")
 
     # save umap plot & embedding
 
     with open(save_folder.joinpath(f"{umap_name}.pickle"), "wb") as f:
         # formerly, saved model & embedding. with embeddings much bigger, this takes a lot of space. takes <1min to re-transform breath_mat
+        # also, model.embedding_ stores embedding already... (oops)
         pickle.dump(
             model,
-            # {
-            #     "model": model,
-            #     "embedding": embedding,
-            # },
             f,
         )
 
