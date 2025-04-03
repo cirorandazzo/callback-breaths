@@ -11,6 +11,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from matplotlib.colors import Normalize
 
 import hdbscan
 
@@ -32,8 +33,8 @@ from utils.umap import (
 # %%
 # load umap, all_breaths data
 
-parent = Path(rf"./data/umap-all_breaths/v4")
-embedding_name = "embedding000-call_exp"
+parent = Path(rf"./data/umap-all_breaths/v5")
+embedding_name = "embedding015-call_exp"
 
 # parent = Path(rf"./data/umap-all_breaths")
 # embedding_name = "embedding003-insp"
@@ -182,11 +183,11 @@ plot_embedding_data(
 
 clusterer = hdbscan.HDBSCAN(
     metric="l1",
-    min_cluster_size=75,
-    min_samples=1,
+    min_cluster_size=5,
+    min_samples=3,
     cluster_selection_method="leaf",
     gen_min_span_tree=True,
-    cluster_selection_epsilon=0.2,
+    cluster_selection_epsilon=0.5,
 )
 
 clusterer.fit(embedding)
@@ -204,6 +205,10 @@ ax_clusters = plot_embedding_data(
 )
 
 cluster_cmap = ax_clusters.collections[0].get_cmap()
+
+vmin = min(clusterer.labels_)
+vmax = max(clusterer.labels_)
+norm = Normalize(vmin, vmax)
 
 # or: highlight certain clusters
 # plot_embedding_data(
@@ -229,7 +234,7 @@ x, height, z = np.split(embedding_plus, 3, axis=0)
 fig = plt.figure()
 ax = fig.add_subplot(projection="3d")
 
-ax.scatter(x, height, z, alpha=0.2, c=clusterer.labels_, cmap=cluster_cmap)
+ax.scatter(x, height, z, alpha=0.2, c=clusterer.labels_, cmap=cluster_cmap, norm=norm)
 
 ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 
@@ -247,8 +252,7 @@ figs, axs, axs_dict = prepare_clusters_axs_dict(
 
 cluster_set_kwargs = dict(
     # ylabel="amplitude",
-    ylim=[-0.05, 1.05],
-    # ylim=[-0.05, 7.05],
+    ylim=[-0.05, 7.05],
     ylabel=None,
     xlabel=None,
     xlim=[-10, 400],
@@ -264,7 +268,7 @@ trace_kwargs = dict(
     set_kwargs={**cluster_set_kwargs, "xlim": [-0.05,1.05]},
 )
 
-# trace_kwargs = dict(
+# trace_kwargs = dict( 
 #     trace_type="breath_norm",
 #     aligned_to="onset",
 #     padding_kwargs=dict(pad_method="end", max_length=None),
@@ -287,7 +291,8 @@ axs_cluster_traces = plot_cluster_traces_pipeline(
     axs=axs_dict,
 )
 
-figs[0].tight_layout()
+for fig in figs:
+    fig.tight_layout()
 
 # %%
 # look at pre + post breath missing values
@@ -319,29 +324,29 @@ post_ampl = post_ampl.loc[~ii_prepost_dne]
 # plot normalized-length traces w/ pre + post
 # warning: takes a few minutes
 
-axs = {k: plt.subplots()[1] for k in np.unique(clusterer.labels_)}
+# axs = {k: plt.subplots()[1] for k in np.unique(clusterer.labels_)}
 
-for i, traces in enumerate((pre_breaths, breaths, post_ampl)):
-    trace_kwargs = dict(
-        trace_type="breath_interpolated",
-        aligned_to=None,
-        padding_kwargs={"aligned_at": i - 1},
-        set_kwargs={
-            **cluster_set_kwargs,
-            "xlim": [-1.05, 2.05],
-            "ylim": [-1.05, 6.5],
-        },
-    )
+# for i, traces in enumerate((pre_breaths, breaths, post_ampl)):
+#     trace_kwargs = dict(
+#         trace_type="breath_interpolated",
+#         aligned_to=None,
+#         padding_kwargs={"aligned_at": i - 1},
+#         set_kwargs={
+#             **cluster_set_kwargs,
+#             "xlim": [-1.05, 2.05],
+#             "ylim": [-1.05, 6.5],
+#         },
+#     )
 
-    plot_cluster_traces_pipeline(
-        **trace_kwargs,
-        df=traces,
-        fs=fs,
-        cluster_labels=clusterer.labels_[~ii_prepost_dne],
-        select=select,
-        cluster_cmap=cluster_cmap,
-        axs = axs,
-    )
+#     plot_cluster_traces_pipeline(
+#         **trace_kwargs,
+#         df=traces,
+#         fs=fs,
+#         cluster_labels=clusterer.labels_[~ii_prepost_dne],
+#         select=select,
+#         cluster_cmap=cluster_cmap,
+#         axs = axs,
+#     )
 
 
 # %%
@@ -395,7 +400,7 @@ fig, ax = plt.subplots()
 
 clusters, heights = cluster_data.keys(), cluster_data.values()
 
-ax.bar(clusters, heights, color=[cluster_cmap(cl) for cl in clusters])
+ax.bar(clusters, heights, color=[cluster_cmap(norm(cl)) for cl in clusters])
 ax.set_xticks(list(clusters))
 
 ax.set(
@@ -416,7 +421,7 @@ fig, ax = plt.subplots()
 
 clusters, heights = cluster_data.keys(), cluster_data.values()
 
-ax.bar(clusters, heights, color=[cluster_cmap(cl) for cl in clusters])
+ax.bar(clusters, heights, color=[cluster_cmap(norm(cl)) for cl in clusters])
 ax.set_xticks(list(clusters))
 
 ax.set(
@@ -431,12 +436,22 @@ ax.set(
 all_breaths["birdname"] = all_breaths.apply(lambda x: parse_birdname(x.name[0]), axis=1)
 
 # by cluster
-fig, axs = plt.subplots(nrows=4, ncols=4, figsize=(9, 8.5))
+# fig, axs = plt.subplots(nrows=4, ncols=4, figsize=(9, 8.5))
 
-for (cluster, cluster_calls), ax in zip(
-    all_breaths.groupby("cluster"), axs.ravel()
-):
+ncols = 6
+nrows = 5
 
+figs, axs, axs_dict = prepare_clusters_axs_dict(
+    labels=np.unique(clusterer.labels_),
+    nrows=nrows,
+    ncols=ncols,
+    sharex=True,
+    sharey=True,
+    figsize=(11, 8.5),
+)
+
+for cluster, cluster_calls in all_breaths.groupby("cluster"):
+    ax = axs_dict[cluster]
     ax.set_aspect("equal")
 
     count = cluster_calls["birdname"].value_counts().sort_index()
@@ -444,10 +459,10 @@ for (cluster, cluster_calls), ax in zip(
     ax.pie(x=count, labels=count.index, labeldistance=None)
     ax.set(title=f"cluster {cluster}\n(n={len(cluster_calls)} calls)")
 
-axs.ravel()[3].legend(bbox_to_anchor=(1.1, 1))
-fig.tight_layout()
+axs.ravel()[ncols - 1].legend(bbox_to_anchor=(1.1, 1))
 
-ax.legend(bbox_to_anchor=(1.1, 1))
+for fig in figs:
+    fig.tight_layout()
 
 # %%
 # scatter w histograms on axes (jointplot)
@@ -476,6 +491,7 @@ scatter = ax.scatter(
     y=post_ampl,
     c=clusterer.labels_,
     cmap=cluster_cmap,
+    norm=norm,
     **scatter_kwargs,
 )
 
