@@ -36,6 +36,7 @@ plt.rcParams.update({"savefig.dpi": 400})
 from utils.audio import AudioObject
 from utils.breath import get_first_breath_segment
 from utils.file import parse_birdname
+from utils.umap import get_call_exps
 
 # %%
 # load `all_trials` and `all_breaths` dataframe
@@ -58,7 +59,7 @@ all_breaths
 # get trace, amplitude for all breaths
 
 # filter
-b, a = butter(N=2, Wn=50, btype="low", fs=fs)
+b, a = butter(N=2, Wn=500, btype="low", fs=fs)
 
 def get_breath_seg(start_s, end_s, breath, fs):
 
@@ -76,7 +77,8 @@ for wav_filename, file_breaths in all_breaths.groupby("wav_filename"):
 
     ao = AudioObject.from_wav(wav_filename, channels=1, b=b, a=a)
 
-    breath = ao.audio.astype(float)
+    # breath = ao.audio.astype(float)
+    breath = ao.audio_filt
 
     # map [biggest_insp, zero_point] --> [-1, 0]
     breath -= zero_point
@@ -124,6 +126,7 @@ ii_call_exps = (all_breaths["type"] == "exp") & (all_breaths["amplitude"] >= thr
 all_breaths.loc[ii_call_exps, "putative_call"] = True
 
 
+# set prior inspiration as putative call insp
 for idx, breath in all_breaths[ii_call_exps].iterrows():
 
     if idx[1] == 0:
@@ -188,7 +191,8 @@ all_breaths
 # interpolated
 
 # interpolate_length = int(12e3)  # 96.9% of trials shorter than this.
-interpolate_length = int(15253)  # used for first-insp umap embeddings
+# interpolate_length = int(15253)  # used for first-insp umap embeddings
+interpolate_length = int(3e3)
 
 all_breaths["breath_interpolated"] = all_breaths["breath_norm"].apply(
     lambda trial: np.interp(
@@ -206,7 +210,7 @@ save_folder = pathlib.Path(r"./data/umap-all_breaths")
 
 metrics=[
         "cosine",
-        # "correlation",
+        "correlation",
         "euclidean",
     ]
 
@@ -215,7 +219,8 @@ datasets = {
     for k in ["insp", "exp"]
 }
 
-datasets["call_exp"] = np.vstack(all_breaths.loc[(all_breaths["putative_call"]) & (all_breaths["type"] == "exp"), "breath_interpolated"])
+ii_call_exps = get_call_exps(all_breaths, exclude_song=True, return_index=True)
+datasets["call_exp"] = np.vstack(all_breaths.loc[ii_call_exps, "breath_interpolated"])
 
 # precompute distance metrics for speed
 # distances = {
@@ -226,7 +231,7 @@ datasets["call_exp"] = np.vstack(all_breaths.loc[(all_breaths["putative_call"]) 
 umap_params = dict(
     breath_type=["call_exp"],
     # breath_type=["insp", "exp"],
-    n_neighbors=[5, 10, 100, 500],
+    n_neighbors=[3, 5, 10, 100, 500],
     min_dist=[0.001, 0.01, 0.1, 0.5],
     metric=metrics,
 )
