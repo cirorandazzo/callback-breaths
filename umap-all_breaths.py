@@ -33,11 +33,11 @@ from utils.umap import (
 # %%
 # load umap, all_breaths data
 
-parent = Path(rf"./data/umap-all_breaths/v5")
-embedding_name = "embedding015-call_exp"
+# parent = Path(rf"./data/umap-all_breaths/v5")
+# embedding_name = "embedding015-call_exp"
 
-# parent = Path(rf"./data/umap-all_breaths")
-# embedding_name = "embedding003-insp"
+parent = Path(rf"./data/umap-all_breaths/v3")
+embedding_name = "embedding003-insp"
 
 # parent = Path(rf"./data/umap-all_breaths/v2")
 # embedding_name = "embedding035-exp"
@@ -222,6 +222,25 @@ norm = Normalize(vmin, vmax)
 #     # or use: highlighted_clusters
 #     set_bad=dict(c="k", alpha=1),
 # )
+
+# %%
+# pickle clusterer & clusters
+
+filepath_clusterer = parent.joinpath(f"{embedding_name}-clusterer.pickle")
+
+if filepath_clusterer.exists():
+    print(f"Clusterer already exists at: {filepath_clusterer}.")
+else:
+    print(f"Saving clusterer to: {filepath_clusterer}.")
+    with open(filepath_clusterer, "wb") as f:
+        pickle.dump(
+            dict(
+                clusterer=clusterer,
+                clusters=clusterer.labels_,
+            ),
+            f,
+        )
+
 
 # %%
 # 3d plot: embedding + duration
