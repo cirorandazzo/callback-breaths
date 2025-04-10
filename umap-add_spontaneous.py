@@ -1,29 +1,22 @@
 # %%
-# umap-all_breaths.py
+# umap-add_spontaneous.py
 #
 # analyzing umap on all breaths (implemented for either insp or exp)
 
-from pathlib import Path
+
 import pickle
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
-from matplotlib.colors import Normalize
 
 import hdbscan
+import umap
 
-from utils.file import parse_birdname
 from utils.umap import (
-    get_call_exps,
-    get_time_since_stim,
-    loc_relative,
-    plot_cluster_traces_pipeline,
     plot_embedding_data,
-    plot_violin_by_cluster,
-    prepare_clusters_axs_dict,
 )
 
 # %load_ext autoreload
@@ -31,55 +24,115 @@ from utils.umap import (
 # %aimport utils.umap
 
 # %%
-# load umap, all_breaths data
+# paths
 
-# parent = Path(rf"./data/umap-all_breaths/v5")
-# embedding_name = "embedding015-call_exp"
+data_parent = Path(
+    r"C:\Users\ciro\Documents\code\callbacks-breathing\data\spontaneous-pre_lesion"
+)
 
-parent = Path(rf"./data/umap-all_breaths/v3")
+save_folder = data_parent
+
+umap_parent = Path(rf"./data/umap-all_breaths/v3")
 embedding_name = "embedding003-insp"
 
-# parent = Path(rf"./data/umap-all_breaths/v2")
-# embedding_name = "embedding035-exp"
+# %%
+# load spontaneous data
+#
+# dfs: all_breaths, all_files
 
-fs = 44100
-
-# parent = Path(rf"M:\public\Ciro\callback-breaths\umap-all_breaths")
-
-all_breaths_path = parent.joinpath("all_breaths.pickle")
-umap_pickle_path = parent.joinpath(f"{embedding_name}.pickle")
-
-all_trials_path = Path(r"./data/breath_figs-spline_fit/all_trials.pickle")
-
-# breath data
-print("loading all breaths data...")
-with open(all_breaths_path, "rb") as f:
+with open(data_parent.joinpath("all_breaths.pickle"), "rb") as f:
     all_breaths = pickle.load(f)
-print("all breaths data loaded!")
 
-# trial data
-print("loading all trials data...")
-with open(all_trials_path, "rb") as f:
-    all_trials = pickle.load(f)
-print("all trials data loaded!")
+with open(data_parent.joinpath("all_files.pickle"), "rb") as f:
+    all_files = pickle.load(f)
 
-# UMAP
-# note: ensure environment is EXACTLY the same as when the model was trained.
-# otherwise, the model may not load.
-print("loading umap embedding...")
+# %%
+# load umap model & hdbscan clusterer
+
+# umap model
+umap_pickle_path = umap_parent.joinpath(f"{embedding_name}.pickle")
+
 with open(umap_pickle_path, "rb") as f:
     model = pickle.load(f)
-print("umap embedding loaded!")
 
-embedding = model.embedding_
+print("umap loaded!")
 
+# cluster
+clusterer_pickle_path = umap_parent.joinpath(f"{embedding_name}-clusterer.pickle")
+
+with open(clusterer_pickle_path, "rb") as f:
+    clusterer = pickle.load(f)
+
+    if isinstance(clusterer, dict):
+        clusterer = clusterer["clusterer"]
+
+print("clusterer loaded!")
+
+# %%
 model
 
 # %%
-# kwargs consistent across
+clusterer
+
+# %%
+# fetch & stack breath segments
+
+fs = 32000
+interpolate_length = int(15253)  # used for first-insp umap embeddings
+
+def get_breath_seg(trial, fs, npy_folder, interpolate_length):
+    
+    # load file data
+    cbin_name = Path(trial.name[0]).stem
+    breath = np.load(npy_folder.joinpath(f"{cbin_name}.npy"))[1, :]
+
+    # get start/end indices of breath
+    start_s, end_s = trial[["start_s", "end_s"]]
+    ii_audio = (np.array([start_s, end_s]) * fs).astype(int)
+    
+    # cut
+    cut_breath = breath[np.arange(*ii_audio)]
+
+    # interpolate
+    l = len(cut_breath)
+    cut_breath = np.interp(
+        np.linspace(0, l, interpolate_length),
+        np.arange(l),
+        cut_breath,
+    )
+
+    return cut_breath
+
+
+all_insps = all_breaths.loc[all_breaths["type"] == "insp"]
+
+insps_interp = np.vstack(all_insps.apply(get_breath_seg, axis=1, args=[fs, data_parent, interpolate_length]))
+
+# %%
+# embed spontaneous data in callback umap space
+
+embedding = model.transform(insps_interp)
+
+embedding
+
+# %%
+# estimate clusters
+
+labels, strengths = hdbscan.approximate_predict(clusterer, embedding)
+
+np.unique(labels)
+
+# %%
+# plot embedding
+#
+# WARNING: hdbscan approx_predict doesn't play well with `cluster_selection_epsilon` param
+# eg, see here: https://github.com/scikit-learn-contrib/hdbscan/issues/375
+#
+# figure out how to resolve this
+
 scatter_kwargs = dict(
-    s=.2,
-    alpha=0.5,
+    s=.1,
+    alpha=0.1,
 )
 
 set_kwargs = dict(
@@ -87,14 +140,35 @@ set_kwargs = dict(
     ylabel="UMAP2",
 )
 
-# %%
-# add time since stim
+fig, ax = plt.subplots()
+ax.scatter(embedding[:, 0], embedding[:, 1], **scatter_kwargs)
 
-all_breaths["time_since_stim_s"] = all_breaths.apply(
-    get_time_since_stim,
-    axis=1,
-    all_trials=all_trials,
-)
+ax.set(**set_kwargs, title=f"{embedding_name} - spontaneous insps")
+
+# plot_embedding_data(
+#     embedding=embedding,
+#     embedding_name=embedding_name,
+#     plot_type="clusters",
+#     c=labels,
+#     set_kwargs=set_kwargs,
+#     scatter_kwargs=scatter_kwargs,
+#     set_bad=dict(c="k", alpha=1),
+# )
+
+
+# %%
+
+for umap_dim in range(embedding.shape[1]):
+    all_insps.loc[:, f"UMAP{umap_dim}"] = embedding[:, umap_dim]
+
+save_path_embedded = save_folder.joinpath(f"{embedding_name}-spontaneous.pickle")
+
+with open(save_path_embedded, "wb") as f: 
+    pickle.dump(all_insps, f)
+
+# %%
+raise Exception("Below are copied from umap-all_breaths. Need to build spontaneous data before running the following")
+
 
 # %%
 # take only type in embedding
@@ -119,19 +193,10 @@ ii_next = all_breaths.apply(
 # %%
 # embedding plots
 
-# PUTATIVE CALL
-
-plot_embedding_data(
-    embedding,
-    embedding_name,
-    all_breaths,
-    plot_type="putative_call",
-    scatter_kwargs=scatter_kwargs,
-    set_kwargs=set_kwargs,
-)
+# PHASE
+raise Exception("ADD PHASE")
 
 # AMPLITUDE
-
 plot_embedding_data(
     embedding,
     embedding_name,
@@ -142,7 +207,6 @@ plot_embedding_data(
 )
 
 # DURATION
-
 plot_embedding_data(
     embedding,
     embedding_name,
@@ -155,20 +219,7 @@ plot_embedding_data(
     cmap_name="viridis",
 )
 
-# BREATHS SINCE LAST STIM
-
-plot_embedding_data(
-    embedding,
-    embedding_name,
-    all_breaths,
-    plot_type="breaths_since_stim",
-    scatter_kwargs=scatter_kwargs,
-    set_kwargs=set_kwargs,
-    n_breaths=6,
-)
-
 # BY BIRD
-
 plot_embedding_data(
     embedding,
     embedding_name,
@@ -181,29 +232,18 @@ plot_embedding_data(
 # %%
 # clustering
 
-clusterer = hdbscan.HDBSCAN(
-    metric="l1",
-    min_cluster_size=130,
-    min_samples=1,
-    cluster_selection_method="leaf",
-    gen_min_span_tree=True,
-    cluster_selection_epsilon=0.2,
-    prediction_data=True,  # speeds up subsequent predictions
-)
 
-clusterer.fit(embedding)
+# all_breaths["cluster"] = clusterer.labels_
 
-all_breaths["cluster"] = clusterer.labels_
-
-ax_clusters = plot_embedding_data(
-    embedding=embedding,
-    embedding_name=embedding_name,
-    plot_type="clusters",
-    clusterer=clusterer,
-    set_kwargs=set_kwargs,
-    scatter_kwargs=scatter_kwargs,
-    set_bad=dict(c="k", alpha=1),
-)
+# ax_clusters = plot_embedding_data(
+#     embedding=embedding,
+#     embedding_name=embedding_name,
+#     plot_type="clusters",
+#     clusterer=clusterer,
+#     set_kwargs=set_kwargs,
+#     scatter_kwargs=scatter_kwargs,
+#     set_bad=dict(c="k", alpha=1),
+# )
 
 cluster_cmap = ax_clusters.collections[0].get_cmap()
 
@@ -223,25 +263,6 @@ norm = Normalize(vmin, vmax)
 #     # or use: highlighted_clusters
 #     set_bad=dict(c="k", alpha=1),
 # )
-
-# %%
-# pickle clusterer & clusters
-
-filepath_clusterer = parent.joinpath(f"{embedding_name}-clusterer.pickle")
-
-if filepath_clusterer.exists():
-    print(f"Clusterer already exists at: {filepath_clusterer}.")
-else:
-    print(f"Saving clusterer to: {filepath_clusterer}.")
-    with open(filepath_clusterer, "wb") as f:
-        pickle.dump(
-            dict(
-                clusterer=clusterer,
-                clusters=clusterer.labels_,
-            ),
-            f,
-        )
-
 
 # %%
 # 3d plot: embedding + duration
