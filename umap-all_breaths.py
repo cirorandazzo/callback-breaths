@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib.colors import Normalize
 
-import hdbscan
+from hdbscan import HDBSCAN
+# from sklearn.cluster import HDBSCAN
 
 from utils.file import parse_birdname
 from utils.umap import (
@@ -181,13 +182,14 @@ plot_embedding_data(
 # %%
 # clustering
 
-clusterer = hdbscan.HDBSCAN(
+clusterer = HDBSCAN(
     metric="l1",
     min_cluster_size=130,
     min_samples=1,
     cluster_selection_method="leaf",
-    gen_min_span_tree=True,
     cluster_selection_epsilon=0.2,
+    # in hdbscan package impl, but not sklearn:
+    gen_min_span_tree=True,
     prediction_data=True,  # speeds up subsequent predictions
 )
 
