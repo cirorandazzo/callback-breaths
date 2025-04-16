@@ -15,7 +15,7 @@ from scipy.stats import linregress
 import matplotlib.pyplot as plt
 
 from utils.audio import AudioObject
-
+from utils.breath import get_segment_duration
 from utils.umap import (
     loc_relative,
 )
@@ -42,26 +42,6 @@ with open(data_parent.joinpath("all_files.pickle"), "rb") as f:
 
 # %%
 # get cycle duration: this cycle and previous cycle
-
-
-def get_segment_duration(trial, df, rel_index=[-2, -1]):
-    """
-    Get the total duration of breath segments in rel_index (where current == 0).
-
-    Eg, default [-2, -1] will return the duration of the previous expiration and
-    previous inspiration. (-2 = prev exp, -1 = prev insp).
-    """
-
-    # duration for: [prev exp, prev insp]
-    durations = np.array(
-        [
-            loc_relative(*trial.name, df, field="duration_s", i=i, default=np.nan)
-            for i in rel_index
-        ]
-    )
-
-    return durations.sum()
-
 
 exps = all_breaths[all_breaths["type"] == "exp"]
 
