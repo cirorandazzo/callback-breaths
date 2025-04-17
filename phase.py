@@ -176,9 +176,9 @@ mean_duration_by_bird
 # %%
 # compute breath phase @ stim onsets
 
-
+# phase wrapper for STIM TRIAL
 def get_phase_wrapper(trial, mean_duration_by_bird):
-    t = trial["dt_prestim_exp"]
+    t = trial["dt_prestim_exp"]  # time since last exp @ stim onset
     bird = trial["birdname"]
 
     if pd.isna(t):
@@ -332,8 +332,8 @@ call_exps["dur_insp_nMin1"] = call_exps.apply(
 # %%
 # get call breath phases
 
-
-def get_phase_wrapper_call_exps(trial, mean_duration_by_bird):
+# phase wrapper for BREATHS
+def get_phase_wrapper(trial, mean_duration_by_bird):
     t = trial["dur_exp_nMin1"] + trial["dur_insp_nMin1"]
     bird = trial["birdname"]
 
@@ -359,7 +359,7 @@ def get_phase_wrapper_call_exps(trial, mean_duration_by_bird):
 
 
 call_exps["phase"] = call_exps.apply(
-    get_phase_wrapper_call_exps,
+    get_phase_wrapper,
     args=[mean_duration_by_bird],
     axis=1,
 )
