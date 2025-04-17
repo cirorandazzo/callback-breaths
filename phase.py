@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from utils.breath import (
-    get_kde_distribution,
     get_phase,
     plot_duration_distribution,
+    plot_traces_by_cluster_and_phase,
 )
 from utils.file import parse_birdname
 from utils.umap import (
@@ -25,7 +25,6 @@ from utils.umap import (
     get_call_exps,
     get_discrete_cmap,
 )
-
 
 # %load_ext autoreload
 # %autoreload 1
@@ -506,92 +505,24 @@ ax, parts = plot_violin_by_cluster(
     ),
 )
 
-
 # %%
 # plot traces sorted by insp cluster & phase
 
 n_bins = 12
 window_s = np.array([-0.75, 0.5])
 
-trace_kwargs = dict(
-    linewidth=0.1,
-    color="k",
-    alpha=0.4,
-)
-
-axline_kwarg = dict(
-    linewidth=1,
-    color="tab:blue",
-)
-
 trace_folder = Path("./data/cleaned_breath_traces")
-
-def get_wav_snippet(trial, window_fr, fs, trace_folder):
-    """
-    post time includes breath length
-
-    trace_folder should contain .npy copies of the .wav files with matching file names & no folder structure   
-    """
-
-    # get file
-    wav_file = trial.name[0]
-    np_file = trace_folder.joinpath(Path(wav_file).stem + ".npy")
-    breath = np.load(np_file)
-
-    # get indices
-    onset = int(fs * trial["start_s"])
-    ii = np.arange(*window_fr) + onset
-
-    try:
-        return breath[ii]
-    except IndexError:
-        return pd.NA
-
-
-window_fr = (fs * window_s).astype(int)
-x = np.linspace(*window_s, np.ptp(window_fr))
 
 phase_bins = np.linspace(0, 4, n_bins + 1) * np.pi
 
-figs = {}
-
-for insp_cluster, cluster_calls in call_exps.groupby("cluster_previous"):
-    phases = cluster_calls["phase"]
-
-    cols = 4
-    fig, axs = plt.subplots(
-        figsize=(11, 8.5),
-        ncols=cols,
-        nrows=np.ceil(n_bins / cols).astype(int),
-        sharex=True,
-        sharey=True,
-    )
-
-    for st_ph, en_ph, ax in zip(
-        phase_bins[:-1],
-        phase_bins[1:],
-        axs.ravel()[:n_bins],
-    ):
-        calls_in_phase = cluster_calls.loc[(phases > st_ph) & (phases <= en_ph)]
-        traces = calls_in_phase.apply(get_wav_snippet, axis=1, args=[window_fr, fs, trace_folder])
-
-        ax.axhline(**axline_kwarg)
-        ax.axvline(**axline_kwarg)
-
-        if len(traces) != 0:
-            traces = np.vstack(traces.loc[traces.notnull()])
-
-            ax.plot(x, traces.T, **trace_kwargs)
-            ax.plot(x, traces.mean(axis=0), color="r")
-
-        ax.set(
-            title=f"({st_ph:.2f},{en_ph:.2f}], n={traces.shape[0]}",
-            xlim=window_s,
-        )
-
-    fig.suptitle(f"Cluster: {insp_cluster} (n={len(cluster_calls)} call exps)")
-
-    figs[insp_cluster] = fig
+figs = plot_traces_by_cluster_and_phase(
+    df_breaths=call_exps,
+    fs=fs,
+    window_s=window_s,
+    trace_folder=trace_folder,
+    phase_bins=phase_bins,
+    cluster_col_name="cluster_previous",
+)
 
 print("Done! Figures by cluster in dict `figs`")
 
