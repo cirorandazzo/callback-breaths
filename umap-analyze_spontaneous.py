@@ -191,6 +191,28 @@ ax.set(
 )
 
 # %%
+# CALLS PER CLUSTER
+
+cluster_data = {
+    i_cluster: sum(all_insps["putative_call"] & (labels == i_cluster))
+    for i_cluster in np.unique(labels)
+}
+
+fig, ax = plt.subplots()
+
+clusters, heights = cluster_data.keys(), cluster_data.values()
+
+ax.bar(clusters, heights, color=[cluster_cmap(norm(cl)) for cl in clusters])
+ax.set_xticks(list(clusters))
+
+ax.set(
+    xlabel="cluster",
+    ylabel="count (# calls)",
+    title="# calls / cluster",
+)
+
+
+# %%
 # get trace by cluster
 
 cluster_traces = {cl: insps_interp[labels == cl] for cl in np.unique(labels)}

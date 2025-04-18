@@ -265,8 +265,8 @@ ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 
 figs, axs, axs_dict = prepare_clusters_axs_dict(
     labels=np.unique(clusterer.labels_),
-    nrows=3,
-    ncols=5,
+    nrows=4,
+    ncols=4,
     sharex=True,
     sharey=True,
     figsize=(13, 5.45),
@@ -274,7 +274,7 @@ figs, axs, axs_dict = prepare_clusters_axs_dict(
 
 cluster_set_kwargs = dict(
     # ylabel="amplitude",
-    ylim=[-0.05, 7.05],
+    # ylim=[-1.05, 7.05],
     ylabel=None,
     xlabel=None,
     xlim=[-10, 400],
@@ -450,6 +450,27 @@ ax.set(
     xlabel="cluster",
     ylabel="count (# trials)",
     title="cluster size",
+)
+
+# %%
+# CALLS PER CLUSTER
+
+cluster_data = {
+    i_cluster: sum(all_breaths["putative_call"] & (clusterer.labels_ == i_cluster))
+    for i_cluster in np.unique(clusterer.labels_)
+}
+
+fig, ax = plt.subplots()
+
+clusters, heights = cluster_data.keys(), cluster_data.values()
+
+ax.bar(clusters, heights, color=[cluster_cmap(norm(cl)) for cl in clusters])
+ax.set_xticks(list(clusters))
+
+ax.set(
+    xlabel="cluster",
+    ylabel="count (# calls)",
+    title="# calls / cluster",
 )
 
 # %%
