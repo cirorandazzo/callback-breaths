@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import Normalize
 
 import hdbscan
@@ -27,6 +26,7 @@ from utils.breath import (
 from utils.breath import (
     get_phase,
     plot_duration_distribution,
+    plot_traces_by_cluster_and_phase,
 )
 from utils.umap import (
     plot_embedding_data,
@@ -35,7 +35,7 @@ from utils.umap import (
 )
 
 # %load_ext autoreload
-# %autoreload 1
+# %autoreload 2
 # %aimport utils.breath
 
 # %%
@@ -54,23 +54,23 @@ embedding_name = "embedding003-insp"
 # load downsampled data (.npy)
 #
 
-insps_interp_downsample_save_path = data_parent.joinpath("insps_interp-downsampled.npy")
+insps_interp_downsampled_path = data_parent.joinpath("insps_interp-downsampled.npy")
 
-insps_interp = np.load(insps_interp_downsample_save_path)
+insps_interp = np.load(insps_interp_downsampled_path)
 
 # %%
 # load embedding/cluster data
 
-embedding_save_path = save_folder.joinpath(f"{embedding_name}-spontaneous.pickle")
+embedding_path = data_parent.joinpath(f"{embedding_name}-spontaneous.pickle")
 
-all_insps = pd.read_pickle(embedding_save_path)
+all_insps = pd.read_pickle(embedding_path)
 
 # %%
 # load all breaths data
 
-all_breaths_save_path = data_parent.joinpath("all_breaths.pickle")
+all_breaths_path = data_parent.joinpath("all_breaths.pickle")
 
-all_breaths = pd.read_pickle(all_breaths_save_path)
+all_breaths = pd.read_pickle(all_breaths_path)
 
 # %%
 # plot embedding
@@ -360,7 +360,9 @@ ax, parts = plot_violin_by_cluster(
 )
 
 # %%
-# bins of phase
+# report on counts: bins of phase by cluster
+#
+# get a sense of how many traces will be in each tile of following trace plots (grouped by cluster & phase)
 
 n_bins = 12
 bins = np.pi * np.linspace(0, 4, n_bins)
@@ -402,92 +404,46 @@ for (cluster, phase_bin), breaths in all_insps.groupby(by=["cluster", "phase_bin
 # %%
 # plot by cluster & phase
 
-raise Exception("Need to implement")
+plt.close("all")
 
 n_bins = 12
 window_s = np.array([-0.75, 0.5])
+fs = 32000
 
-trace_kwargs = dict(
-    linewidth=0.1,
-    color="k",
-    alpha=0.4,
-)
+trace_folder = Path("./data/spontaneous-pre_lesion")
 
 axline_kwarg = dict(
     linewidth=1,
-    color="tab:blue",
+    color="indigo",
 )
-
-trace_folder = Path("./data/cleaned_breath_traces")
-
-
-def get_wav_snippet(trial, window_fr, fs, trace_folder):
-    """
-    post time includes breath length
-
-    trace_folder should contain .npy copies of the .wav files with matching file names & no folder structure
-    """
-
-    # get file
-    wav_file = trial.name[0]
-    np_file = trace_folder.joinpath(Path(wav_file).stem + ".npy")
-    breath = np.load(np_file)
-
-    # get indices
-    onset = int(fs * trial["start_s"])
-    ii = np.arange(*window_fr) + onset
-
-    try:
-        return breath[ii]
-    except IndexError:
-        return pd.NA
-
-
-window_fr = (fs * window_s).astype(int)
-x = np.linspace(*window_s, np.ptp(window_fr))
 
 phase_bins = np.linspace(0, 4, n_bins + 1) * np.pi
 
-figs = {}
-
-for insp_cluster, cluster_calls in all_breaths.groupby("cluster"):
-    phases = cluster_calls["phase"]
-
-    cols = 4
-    fig, axs = plt.subplots(
-        figsize=(11, 8.5),
-        ncols=cols,
-        nrows=np.ceil(n_bins / cols).astype(int),
-        sharex=True,
-        sharey=True,
-    )
-
-    for st_ph, en_ph, ax in zip(
-        phase_bins[:-1],
-        phase_bins[1:],
-        axs.ravel()[:n_bins],
-    ):
-        calls_in_phase = cluster_calls.loc[(phases > st_ph) & (phases <= en_ph)]
-        traces = calls_in_phase.apply(
-            get_wav_snippet, axis=1, args=[window_fr, fs, trace_folder]
-        )
-
-        ax.axhline(**axline_kwarg)
-        ax.axvline(**axline_kwarg)
-
-        if len(traces) != 0:
-            traces = np.vstack(traces.loc[traces.notnull()])
-
-            ax.plot(x, traces.T, **trace_kwargs)
-            ax.plot(x, traces.mean(axis=0), color="r")
-
-        ax.set(
-            title=f"({st_ph:.2f},{en_ph:.2f}], n={traces.shape[0]}",
-            xlim=window_s,
-        )
-
-    fig.suptitle(f"Cluster: {insp_cluster} (n={len(cluster_calls)} call exps)")
-
-    figs[insp_cluster] = fig
+figs = plot_traces_by_cluster_and_phase(
+    df_breaths=all_insps.loc[all_insps.putative_call],
+    fs=fs,
+    window_s=window_s,
+    trace_folder=trace_folder,
+    phase_bins=phase_bins,
+    npy_breath_channel=1,
+    cluster_col_name="cluster",
+    alignment_col_name="end_s",  # align to insp end (ie, call start)
+    max_traces=500,  # cluster/phase combo with >= max_traces --> mean +- std
+    axline_kwarg=axline_kwarg,
+)
 
 print("Done! Figures by cluster in dict `figs`")
+
+# %%
+# save phase/cluster traces as pdf
+
+pdf_filename = "./data/spontaneous_calls-cluster_phase-OFFSET_aligned.pdf"
+
+pdf_pgs = PdfPages(pdf_filename)
+
+for fig in list(figs.values()):
+    fig.savefig(pdf_pgs, format="pdf")
+
+pdf_pgs.close()
+
+print(f"Saved to {pdf_filename}")
