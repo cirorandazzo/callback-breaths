@@ -18,7 +18,7 @@ from hdbscan import HDBSCAN
 
 from utils.file import parse_birdname
 from utils.umap import (
-    get_call_exps,
+    get_call_segments,
     get_time_since_stim,
     loc_relative,
     plot_cluster_traces_pipeline,
@@ -102,7 +102,7 @@ all_breaths["time_since_stim_s"] = all_breaths.apply(
 type = embedding_name.split("-")[-1]
 
 if type == "call_exp":
-    ii_type = get_call_exps(all_breaths, return_index=True)
+    ii_type = get_call_segments(all_breaths, return_index=True)
 else:
     ii_type = all_breaths["type"] == type
 

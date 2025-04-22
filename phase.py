@@ -22,7 +22,7 @@ from utils.umap import (
     get_time_since_stim,
     loc_relative,
     plot_violin_by_cluster,
-    get_call_exps,
+    get_call_segments,
     get_discrete_cmap,
 )
 
@@ -300,7 +300,7 @@ for bird, data in all_trials.groupby("birdname"):
 # NOTE: this code didn't consider call status of subsequent call before
 # refactor; so, first syll was presumably included. refactor considers
 # the next call & excludes these when exclude_song = True
-call_exps = get_call_exps(all_breaths, exclude_song=True)
+call_exps = get_call_segments(all_breaths, exclude_song=True)
 
 print("Calls per bird:")
 call_exps.value_counts("birdname")
