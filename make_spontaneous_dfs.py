@@ -198,12 +198,8 @@ for i, file in enumerate(files):
 all_files = pd.concat(all_files).sort_index()
 all_breaths = pd.concat(all_breaths).sort_index()
 
-# pickle dataframes/errors
-with open(trace_folder.joinpath("all_files.pickle"), "wb") as f:
-    pickle.dump(all_files, f)
-
-with open(trace_folder.joinpath("all_breaths.pickle"), "wb") as f:
-    pickle.dump(all_breaths, f)
+# pickle errors
+# pickle all_breaths & all_trials after adding columns below!
 
 with open(trace_folder.joinpath("errors.pickle"), "wb") as f:
     pickle.dump(errors, f)
@@ -241,9 +237,75 @@ all_files["date"] = all_files.apply(
 )
 
 # %%
+# add putative call
+
+def check_call(trial, threshold, all_breaths):
+
+    if trial["type"] == "exp":
+        amplitude = trial["amplitude"]
+    elif trial["type"] == "insp":
+        amplitude = loc_relative(
+            *trial.name,
+            all_breaths,
+            field="amplitude",
+            i=1,
+            default=np.nan,
+        )
+    else:
+        raise ValueError(f"`{trial.type}` is an unknown breath type. Must be `insp` or `exp`.")
+
+    return ~(np.isnan(amplitude)) and (amplitude > threshold)
+
+all_breaths["putative_call"] = all_breaths.apply(
+    check_call,
+    axis=1,
+    threshold=1.1,
+    all_breaths=all_breaths,
+)
+
+# %%
+# tests for putative call
+
+# call expirations should have amplitude > threshold
+ii_call_exps = (all_breaths.type == "exp") & (all_breaths.putative_call)
+assert all(all_breaths.loc[ii_call_exps, "amplitude"] > 1.1), "These should all be call exps!"
+
+# noncall expirations should have amplitude <= threshold
+ii_non_call_exps = (all_breaths.type == "exp") & (~all_breaths.putative_call)
+assert all(all_breaths.loc[ii_non_call_exps, "amplitude"] <= 1.1), "These should all be non-call exps!"
+
+# all insps should match next expiration (or have putative_call = False if next exp DNE)
+ii_insps = (all_breaths.type == "insp")
+assert all(
+    all_breaths.loc[ii_insps].apply(
+        lambda x: (
+            (x["putative_call"])
+            == (loc_relative(*x.name, all_breaths, "putative_call", 1, False))
+        ),
+        axis=1,
+    )
+), "Insp should match next exp, or have putative_call = False if next exp DNE"
+
+print("All putative call tests passed!")
+
+# %%
+# all_breaths: save & report
+
+save_path_all_breaths = trace_folder.joinpath("all_breaths.pickle")
+all_breaths.to_pickle(save_path_all_breaths)
+
+print(f"Saved all_breaths to: {save_path_all_breaths}")
+
 all_breaths
 
 # %%
+# all_trials: save & report
+
+save_path_all_files = trace_folder.joinpath("all_files.pickle")
+all_files.to_pickle(save_path_all_files)
+
+print(f"Saved all_files to: {save_path_all_files}")
+
 all_files
 
 # %%

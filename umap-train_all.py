@@ -36,7 +36,7 @@ plt.rcParams.update({"savefig.dpi": 400})
 from utils.audio import AudioObject
 from utils.breath import get_first_breath_segment
 from utils.file import parse_birdname
-from utils.umap import get_call_exps
+from utils.umap import get_call_segments
 
 # %%
 # load `all_trials` and `all_breaths` dataframe
@@ -219,7 +219,7 @@ datasets = {
     for k in ["insp", "exp"]
 }
 
-ii_call_exps = get_call_exps(all_breaths, exclude_song=True, return_index=True)
+ii_call_exps = get_call_segments(all_breaths, exclude_song=True, return_index=True)
 datasets["call_exp"] = np.vstack(all_breaths.loc[ii_call_exps, "breath_interpolated"])
 
 # precompute distance metrics for speed

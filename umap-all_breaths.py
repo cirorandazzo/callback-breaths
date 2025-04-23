@@ -13,11 +13,12 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib.colors import Normalize
 
-import hdbscan
+from hdbscan import HDBSCAN
+# from sklearn.cluster import HDBSCAN
 
 from utils.file import parse_birdname
 from utils.umap import (
-    get_call_exps,
+    get_call_segments,
     get_time_since_stim,
     loc_relative,
     plot_cluster_traces_pipeline,
@@ -101,7 +102,7 @@ all_breaths["time_since_stim_s"] = all_breaths.apply(
 type = embedding_name.split("-")[-1]
 
 if type == "call_exp":
-    ii_type = get_call_exps(all_breaths, return_index=True)
+    ii_type = get_call_segments(all_breaths, return_index=True)
 else:
     ii_type = all_breaths["type"] == type
 
@@ -181,13 +182,15 @@ plot_embedding_data(
 # %%
 # clustering
 
-clusterer = hdbscan.HDBSCAN(
+clusterer = HDBSCAN(
     metric="l1",
-    min_cluster_size=5,
-    min_samples=3,
+    min_cluster_size=130,
+    min_samples=1,
     cluster_selection_method="leaf",
+    cluster_selection_epsilon=0.2,
+    # in hdbscan package impl, but not sklearn:
     gen_min_span_tree=True,
-    cluster_selection_epsilon=0.5,
+    prediction_data=True,  # speeds up subsequent predictions
 )
 
 clusterer.fit(embedding)
@@ -262,8 +265,8 @@ ax.set(xlabel="UMAP1", ylabel="UMAP2", zlabel="insp duration (ms)")
 
 figs, axs, axs_dict = prepare_clusters_axs_dict(
     labels=np.unique(clusterer.labels_),
-    nrows=3,
-    ncols=5,
+    nrows=4,
+    ncols=4,
     sharex=True,
     sharey=True,
     figsize=(13, 5.45),
@@ -271,7 +274,7 @@ figs, axs, axs_dict = prepare_clusters_axs_dict(
 
 cluster_set_kwargs = dict(
     # ylabel="amplitude",
-    ylim=[-0.05, 7.05],
+    # ylim=[-1.05, 7.05],
     ylabel=None,
     xlabel=None,
     xlim=[-10, 400],
@@ -287,7 +290,7 @@ trace_kwargs = dict(
     set_kwargs={**cluster_set_kwargs, "xlim": [-0.05,1.05]},
 )
 
-# trace_kwargs = dict( 
+# trace_kwargs = dict(
 #     trace_type="breath_norm",
 #     aligned_to="onset",
 #     padding_kwargs=dict(pad_method="end", max_length=None),
@@ -447,6 +450,27 @@ ax.set(
     xlabel="cluster",
     ylabel="count (# trials)",
     title="cluster size",
+)
+
+# %%
+# CALLS PER CLUSTER
+
+cluster_data = {
+    i_cluster: sum(all_breaths["putative_call"] & (clusterer.labels_ == i_cluster))
+    for i_cluster in np.unique(clusterer.labels_)
+}
+
+fig, ax = plt.subplots()
+
+clusters, heights = cluster_data.keys(), cluster_data.values()
+
+ax.bar(clusters, heights, color=[cluster_cmap(norm(cl)) for cl in clusters])
+ax.set_xticks(list(clusters))
+
+ax.set(
+    xlabel="cluster",
+    ylabel="count (# calls)",
+    title="# calls / cluster",
 )
 
 # %%
