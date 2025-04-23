@@ -29,6 +29,7 @@ from utils.breath import (
     plot_traces_by_cluster_and_phase,
 )
 from utils.umap import (
+    get_call_segments,
     plot_embedding_data,
     plot_violin_by_cluster,
     prepare_clusters_axs_dict,
@@ -71,6 +72,20 @@ all_insps = pd.read_pickle(embedding_path)
 all_breaths_path = data_parent.joinpath("all_breaths.pickle")
 
 all_breaths = pd.read_pickle(all_breaths_path)
+
+# %%
+# index non-song putative calls
+
+# use all breaths to determine which insps lead to non-song calls
+ii_calls = get_call_segments(all_breaths, type="insp", exclude_song=True, return_index=True).sort_index()
+
+all_insps["putative_call_no_song"] = False
+all_insps.loc[ii_calls, "putative_call_no_song"] = ii_calls
+
+print(
+    "Warning: `putative_call` only accounts for amplitude and may contain song.\n",
+    "Use col `putative_call_no_song` for calls with putative song excluded.",
+)
 
 # %%
 # plot embedding
@@ -152,8 +167,10 @@ plot_embedding_data(
 # PUTATIVE CALL PERCENTAGE
 
 cluster_data = {
-    i_cluster: sum(all_insps["putative_call"] & (labels == i_cluster))
-    / sum((labels == i_cluster))
+    i_cluster: sum(
+        all_insps["putative_call_no_song"] & (all_insps["cluster"] == i_cluster)
+    )
+    / sum((all_insps["cluster"] == i_cluster))
     for i_cluster in np.unique(labels)
 }
 
@@ -174,7 +191,7 @@ ax.set(
 # CLUSTER SIZE
 
 cluster_data = {
-    i_cluster: sum((labels == i_cluster)) for i_cluster in np.unique(labels)
+    i_cluster: sum((all_insps["cluster"] == i_cluster)) for i_cluster in np.unique(labels)
 }
 
 fig, ax = plt.subplots()
@@ -194,7 +211,9 @@ ax.set(
 # CALLS PER CLUSTER
 
 cluster_data = {
-    i_cluster: sum(all_insps["putative_call"] & (labels == i_cluster))
+    i_cluster: sum(
+        all_insps["putative_call_no_song"] & (all_insps["cluster"] == i_cluster)
+    )
     for i_cluster in np.unique(labels)
 }
 
@@ -442,7 +461,7 @@ axline_kwarg = dict(
 phase_bins = np.linspace(0, 4, n_bins + 1) * np.pi
 
 figs = plot_traces_by_cluster_and_phase(
-    df_breaths=all_insps.loc[all_insps.putative_call],
+    df_breaths=get_call_segments(all_breaths, type="insp", exclude_song=True, return_index=False),
     fs=fs,
     window_s=window_s,
     trace_folder=trace_folder,
@@ -459,7 +478,7 @@ print("Done! Figures by cluster in dict `figs`")
 # %%
 # save phase/cluster traces as pdf
 
-pdf_filename = "./data/spontaneous_calls-cluster_phase-OFFSET_aligned.pdf"
+pdf_filename = "./data/spontaneous_calls-cluster_phase-OFFSET_aligned-excl_song.pdf"
 
 pdf_pgs = PdfPages(pdf_filename)
 
