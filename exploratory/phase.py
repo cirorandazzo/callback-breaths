@@ -19,11 +19,11 @@ from utils.breath import (
 )
 from utils.file import parse_birdname
 from utils.umap import (
+    get_call_segments,
+    get_discrete_cmap,
     get_time_since_stim,
     loc_relative,
     plot_violin_by_cluster,
-    get_call_segments,
-    get_discrete_cmap,
 )
 
 # %load_ext autoreload
@@ -73,9 +73,9 @@ for col in df_clusters.columns:
 
 for field in ["cluster", "UMAP0", "UMAP1"]:
     all_breaths[f"{field}_previous"] = all_breaths.apply(
-    lambda x: loc_relative(*x.name, all_breaths, field=field, i=-1),
-    axis=1,
-)
+        lambda x: loc_relative(*x.name, all_breaths, field=field, i=-1),
+        axis=1,
+    )
 
 # %%
 # select non-call breaths
@@ -174,6 +174,7 @@ mean_duration_by_bird
 
 # %%
 # compute breath phase @ stim onsets
+
 
 # phase wrapper for STIM TRIAL
 def get_phase_wrapper(trial, mean_duration_by_bird):
@@ -331,6 +332,7 @@ call_exps["dur_insp_nMin1"] = call_exps.apply(
 # %%
 # get call breath phases
 
+
 # phase wrapper for BREATHS
 def get_phase_wrapper(trial, mean_duration_by_bird):
     t = trial["dur_exp_nMin1"] + trial["dur_insp_nMin1"]
@@ -389,10 +391,10 @@ for bird, data in call_exps.groupby("birdname"):
     fig, axs = stim_phase_subplot(
         times=data["dur_exp_nMin1"] + data["dur_insp_nMin1"],
         phases=data["phase"],
-        linear_set_kwargs= {**lsk, "title": f"n-1 breath dur (n={len(data)} calls)"},
+        linear_set_kwargs={**lsk, "title": f"n-1 breath dur (n={len(data)} calls)"},
         polar_set_title_kwargs=pstk,
         cumulative_polar=False,
-        color="c"
+        color="c",
     )
     fig.suptitle(bird)
 
@@ -416,7 +418,7 @@ call_exps["time_since_stim_s"] = call_exps.apply(
 t = call_exps["time_since_stim_s"]
 ph = call_exps["phase"]
 
-ii_good = ~t.isna() & ~ph.isna() 
+ii_good = ~t.isna() & ~ph.isna()
 
 # select a particuar time range (call exp onset)
 # ii_good = ii_good & (t >= 2)
@@ -469,10 +471,12 @@ df_clusters = call_exps["cluster_previous"].map(
 
 ii_good = ~phases.isna() & ~df_clusters.isna()
 
-cluster_cmap = get_discrete_cmap(min(df_clusters), max(df_clusters)+1, cmap_name="jet") 
+cluster_cmap = get_discrete_cmap(
+    min(df_clusters), max(df_clusters) + 1, cmap_name="jet"
+)
 
 ax, parts = plot_violin_by_cluster(
-    data = np.array(phases.loc[ii_good]).astype(float),
+    data=np.array(phases.loc[ii_good]).astype(float),
     cluster_labels=np.array(df_clusters.loc[ii_good]).astype(int),
     cluster_cmap=cluster_cmap,
     set_kwargs=dict(
@@ -492,7 +496,9 @@ df_clusters = call_exps["cluster_previous"].map(
 
 ii_good = ~latencies.isna() & ~df_clusters.isna() & (latencies > 0)
 
-cluster_cmap = get_discrete_cmap(min(df_clusters), max(df_clusters)+1, cmap_name="jet") 
+cluster_cmap = get_discrete_cmap(
+    min(df_clusters), max(df_clusters) + 1, cmap_name="jet"
+)
 
 ax, parts = plot_violin_by_cluster(
     data=np.array(latencies.loc[ii_good]).astype(float),

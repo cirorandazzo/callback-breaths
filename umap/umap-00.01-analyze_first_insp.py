@@ -1,20 +1,16 @@
 # %%
-# umap-first_insp_only.py
+# umap-00.01-analyze_first_insp.py
 #
 # First pass at umap, using only the first inspiration of each callback trial
 #
 # Trying to tease out categories of breath responses in callback experiments from a UMAP embedding
 
-import glob
-from itertools import product
-import os
 from pathlib import Path
 import pickle
 
 import numpy as np
 import pandas as pd
 
-import matplotlib.colors
 import matplotlib.pyplot as plt
 
 import umap
@@ -24,7 +20,7 @@ import hdbscan
 from utils.umap import (
     plot_cluster_traces_pipeline,
     plot_embedding_data,
-    plot_violin_by_cluster
+    plot_violin_by_cluster,
 )
 
 # %load_ext autoreload
@@ -124,7 +120,7 @@ plot_embedding_data(
     embedding_name,
     all_trials,
     plot_type="duration",
-    vmax = duration_ms.max() + 50,
+    vmax=duration_ms.max() + 50,
     fs=44100,
     scatter_kwargs=scatter_kwargs,
     set_kwargs=set_kwargs,

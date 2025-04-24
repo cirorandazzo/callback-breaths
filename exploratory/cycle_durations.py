@@ -16,9 +16,7 @@ import matplotlib.pyplot as plt
 
 from utils.audio import AudioObject
 from utils.breath import get_segment_duration
-from utils.umap import (
-    loc_relative,
-)
+from utils.umap import loc_relative
 
 # %%
 # paths
@@ -60,7 +58,7 @@ exps["cycle_duration"] = exps.apply(
 rejected = []
 
 # too short
-thr = 0.1 # seconds
+thr = 0.1  # seconds
 
 ii = exps["cycle_duration"] > thr
 rejected.append(exps.loc[~ii])
@@ -73,7 +71,9 @@ ii = exps["amplitude"] < 1.1
 rejected.append(exps.loc[~ii])
 exps = exps.loc[ii]
 
-print(f"Rejecting {sum(~ii)} cycles (of {len(exps)}) which are probably calls (rel. amplitude >= {ii}).")
+print(
+    f"Rejecting {sum(~ii)} cycles (of {len(exps)}) which are probably calls (rel. amplitude >= {ii})."
+)
 
 exps
 
@@ -114,14 +114,16 @@ for i, ax in enumerate(axs):
     if mean:
         cols = [f"cycle_duration_nMin{j}" for j in range(1, nMin + 1)]
         color = "C2"
-        suptitle=f"Cycle durations vs last n-i MEAN (all birds)"
+        suptitle = f"Cycle durations vs last n-i MEAN (all birds)"
     else:
         cols = [f"cycle_duration_nMin{nMin}"]
         color = "C1"
-        suptitle=f"Cycle durations vs n-i (all birds)"
+        suptitle = f"Cycle durations vs n-i (all birds)"
 
     # all necessary columns exists
-    ii = (exps["cycle_duration"].notna()) & exps[cols].notna().apply(lambda x: x.all(), axis=1)
+    ii = (exps["cycle_duration"].notna()) & exps[cols].notna().apply(
+        lambda x: x.all(), axis=1
+    )
 
     x = exps.loc[ii, "cycle_duration"]
     y = exps.loc[ii, cols].apply(np.mean, axis=1)

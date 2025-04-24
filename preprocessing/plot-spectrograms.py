@@ -10,11 +10,12 @@ import pickle
 
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, filtfilt  
+from scipy.signal import butter, filtfilt
 
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')  # attempt to prevent spectrogram-related memory leak :(
+
+matplotlib.use("Agg")  # attempt to prevent spectrogram-related memory leak :(
 
 # %load_ext autoreload
 # %autoreload 1
@@ -162,7 +163,7 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
         ao.filtfilt_butter_default(f_low=500, f_high=15e3)
         ao.make_spectrogram()
 
-        with open( pickled_audio, "wb") as f:
+        with open(pickled_audio, "wb") as f:
             pickle.dump(ao, f)
 
     # for each stim trial in this audio file
@@ -197,7 +198,7 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
 
             fig, ax = plt.subplots(figsize=(10, 5))
 
-            ao.plot_spectrogram(x_offset_s=-1*st, ax=ax, vmin=0.7)
+            ao.plot_spectrogram(x_offset_s=-1 * st, ax=ax, vmin=0.7)
 
             ax.set(
                 title=metadata["plot_id"],

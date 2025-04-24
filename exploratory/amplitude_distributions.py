@@ -4,7 +4,6 @@
 # plot & fit breath amplitude distribution for many files; important step in determining zero point algorithm
 
 import glob
-import json
 import os
 import pickle
 
@@ -14,25 +13,16 @@ from scipy.signal import butter
 
 import matplotlib.pyplot as plt
 
-# %load_ext autoreload
-# %autoreload 1
-# %matplotlib widget
-# %aimport utils.audio
-# %aimport utils.breath
-# %aimport utils.callbacks
-
 from utils.audio import AudioObject
 from utils.breath import (
-    segment_breaths,
-    make_notmat_vars,
-    plot_breath_callback_trial,
     plot_amplitude_dist,
     fit_breath_distribution,
 )
-from utils.callbacks import call_mat_stim_trial_loader
-from utils.evfuncs import segment_notes
-from utils.file import parse_birdname, parse_parameter_from_string
-from utils.video import get_triggers_from_audio
+from utils.file import parse_birdname
+
+# %load_ext autoreload
+# %autoreload 1
+# %aimport utils.breath
 
 # %%
 # get filelist

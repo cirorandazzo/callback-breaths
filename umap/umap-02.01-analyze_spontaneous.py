@@ -1,5 +1,5 @@
 # %%
-# umap-analyze_spontaneous.py
+# umap-02.01-analyze_spontaneous.py
 #
 # analyzing umap on all breaths (implemented for either insp or exp)
 
@@ -11,14 +11,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import Normalize
-
-import hdbscan
-
-# from hdbscan.flat import approximate_predict_flat  # doesn't work.
-
-from sklearn.neighbors import KNeighborsClassifier
-
-import umap
 
 from utils.breath import (
     get_segment_duration,
@@ -77,7 +69,9 @@ all_breaths = pd.read_pickle(all_breaths_path)
 # index non-song putative calls
 
 # use all breaths to determine which insps lead to non-song calls
-ii_calls = get_call_segments(all_breaths, type="insp", exclude_song=True, return_index=True).sort_index()
+ii_calls = get_call_segments(
+    all_breaths, type="insp", exclude_song=True, return_index=True
+).sort_index()
 
 all_insps["putative_call_no_song"] = False
 all_insps.loc[ii_calls, "putative_call_no_song"] = ii_calls
@@ -191,7 +185,8 @@ ax.set(
 # CLUSTER SIZE
 
 cluster_data = {
-    i_cluster: sum((all_insps["cluster"] == i_cluster)) for i_cluster in np.unique(labels)
+    i_cluster: sum((all_insps["cluster"] == i_cluster))
+    for i_cluster in np.unique(labels)
 }
 
 fig, ax = plt.subplots()
@@ -461,7 +456,9 @@ axline_kwarg = dict(
 phase_bins = np.linspace(0, 4, n_bins + 1) * np.pi
 
 figs = plot_traces_by_cluster_and_phase(
-    df_breaths=get_call_segments(all_breaths, type="insp", exclude_song=True, return_index=False),
+    df_breaths=get_call_segments(
+        all_breaths, type="insp", exclude_song=True, return_index=False
+    ),
     fs=fs,
     window_s=window_s,
     trace_folder=trace_folder,

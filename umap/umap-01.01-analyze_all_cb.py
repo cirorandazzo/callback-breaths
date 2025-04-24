@@ -1,5 +1,5 @@
 # %%
-# umap-all_breaths.py
+# umap-01.01-analyze_all_cb.py
 #
 # analyzing umap on all breaths (implemented for either insp or exp)
 
@@ -14,6 +14,7 @@ from matplotlib import gridspec
 from matplotlib.colors import Normalize
 
 from hdbscan import HDBSCAN
+
 # from sklearn.cluster import HDBSCAN
 
 from utils.file import parse_birdname
@@ -79,7 +80,7 @@ model
 # %%
 # kwargs consistent across
 scatter_kwargs = dict(
-    s=.2,
+    s=0.2,
     alpha=0.5,
 )
 
@@ -287,7 +288,7 @@ trace_kwargs = dict(
     trace_type="breath_interpolated",
     aligned_to=None,
     padding_kwargs=None,
-    set_kwargs={**cluster_set_kwargs, "xlim": [-0.05,1.05]},
+    set_kwargs={**cluster_set_kwargs, "xlim": [-0.05, 1.05]},
 )
 
 # trace_kwargs = dict(
@@ -320,7 +321,9 @@ for fig in figs:
 # look at pre + post breath missing values
 
 pre_breaths = all_breaths.apply(
-    lambda x: loc_relative(*x.name, df=other_breaths, i=-1, field="breath_interpolated"),
+    lambda x: loc_relative(
+        *x.name, df=other_breaths, i=-1, field="breath_interpolated"
+    ),
     axis=1,
 )
 
@@ -329,9 +332,11 @@ post_ampl = all_breaths.apply(
     axis=1,
 )
 
-ii_prepost_dne = (pre_breaths.isna() | post_ampl.isna())
+ii_prepost_dne = pre_breaths.isna() | post_ampl.isna()
 
-print(f"Cluster membership of breath segments where previous or next segment doesn't exist (usually: file boundaries).")
+print(
+    f"Cluster membership of breath segments where previous or next segment doesn't exist (usually: file boundaries)."
+)
 pd.Series(clusterer.labels_[ii_prepost_dne]).value_counts().sort_index()
 
 # %%
@@ -376,7 +381,7 @@ post_ampl = post_ampl.loc[~ii_prepost_dne]
 
 # duration
 ax, parts = plot_violin_by_cluster(
-    data = all_breaths.duration_s,
+    data=all_breaths.duration_s,
     cluster_labels=clusterer.labels_,
     cluster_cmap=cluster_cmap,
     set_kwargs=dict(
@@ -406,7 +411,7 @@ ax, parts = plot_violin_by_cluster(
     set_kwargs=dict(
         title="breath segs since stim",
         ylabel="breath segs since stim",
-    )
+    ),
 )
 
 # %%

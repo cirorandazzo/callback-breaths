@@ -1,8 +1,8 @@
 # %%
-# umap-train_all.py
+# umap-01.00-train_all_cb.py
 #
 # analyzing umap on all breaths (implemented for either insp or exp)
-# 
+#
 # umap-train_first_insp.py uses only first insp, from dataframe all_trials
 # this will use all breaths, from dataframe all_breaths
 #
@@ -14,9 +14,7 @@
 #
 # Note: everything after cell "end-pad calls" and before cell "make umap embeddings" makes plots - you can skip these if you just want new embeddings.
 
-import glob
 from itertools import product
-import json
 import os
 import pathlib
 import pickle
@@ -25,7 +23,6 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.signal import butter
-from scipy.spatial.distance import pdist
 
 import matplotlib.pyplot as plt
 
@@ -34,8 +31,6 @@ import umap
 plt.rcParams.update({"savefig.dpi": 400})
 
 from utils.audio import AudioObject
-from utils.breath import get_first_breath_segment
-from utils.file import parse_birdname
 from utils.umap import get_call_segments
 
 # %%
@@ -51,7 +46,7 @@ with open("./data/breath_figs-spline_fit/all_breaths.pickle", "rb") as f:
 
 # reject stimuli, which are also stored in this df
 stims = all_breaths.loc[all_breaths["type"] == "Stimulus"]
-all_breaths = all_breaths.loc[ all_breaths["type"].apply(lambda x: x in ["insp", "exp"])]
+all_breaths = all_breaths.loc[all_breaths["type"].apply(lambda x: x in ["insp", "exp"])]
 
 all_breaths
 
@@ -60,6 +55,7 @@ all_breaths
 
 # filter
 b, a = butter(N=2, Wn=500, btype="low", fs=fs)
+
 
 def get_breath_seg(start_s, end_s, breath, fs):
 
@@ -71,7 +67,9 @@ def get_breath_seg(start_s, end_s, breath, fs):
 
 for wav_filename, file_breaths in all_breaths.groupby("wav_filename"):
 
-    zero_point = all_trials.xs(level="wav_filename", key=wav_filename)["breath_zero_point"].unique()
+    zero_point = all_trials.xs(level="wav_filename", key=wav_filename)[
+        "breath_zero_point"
+    ].unique()
     assert len(zero_point) == 1
     zero_point = zero_point[0]
 
@@ -146,7 +144,9 @@ def add_trial_info(all_breaths, all_trials):
 
     new_columns = ["stims_index", "trial_index"]
 
-    assert not all([c in all_breaths.reset_index().columns for c in new_columns]), f"Trial info already in all_breaths!"
+    assert not all(
+        [c in all_breaths.reset_index().columns for c in new_columns]
+    ), f"Trial info already in all_breaths!"
 
     # Initialize with nullable Int16 dtype
     all_breaths["stims_index"] = pd.Series(dtype=pd.Int16Dtype())
@@ -182,6 +182,7 @@ def add_trial_info(all_breaths, all_trials):
 
     return all_breaths
 
+
 all_breaths = add_trial_info(all_breaths, all_trials)
 
 all_breaths
@@ -208,11 +209,11 @@ all_breaths["breath_interpolated"] = all_breaths["breath_norm"].apply(
 
 save_folder = pathlib.Path(r"./data/umap-all_breaths")
 
-metrics=[
-        "cosine",
-        "correlation",
-        "euclidean",
-    ]
+metrics = [
+    "cosine",
+    "correlation",
+    "euclidean",
+]
 
 datasets = {
     k: np.vstack(all_breaths.loc[all_breaths["type"] == k, "breath_interpolated"])
@@ -283,7 +284,7 @@ for i, condition in enumerate(conditions):
     with open(save_folder.joinpath(f"log.txt"), "a") as f:
         f.write(f"- embedding{i}:\n")
 
-        for k,v in condition.items():
+        for k, v in condition.items():
             f.write(f"  - {k}: {v}\n")
 
     # get data
@@ -292,14 +293,13 @@ for i, condition in enumerate(conditions):
     # # get distance
     # metric = condition.pop("metric")
 
-
     try:
         start_time = time.time()
         print("\t- Starting fit...")
 
         model = umap.UMAP(**condition, verbose=True)
         embedding = model.fit_transform(breaths_mat)
-        
+
         print(f"\t- Done fitting! Took {time.time() - start_time}s.")
     except Exception as e:
         errors[i] = e
@@ -307,7 +307,9 @@ for i, condition in enumerate(conditions):
         continue
 
     # plot umap
-    n_since_stim = all_breaths.loc[all_breaths["type"] == breath_type, "trial_index"].fillna(-1)
+    n_since_stim = all_breaths.loc[
+        all_breaths["type"] == breath_type, "trial_index"
+    ].fillna(-1)
 
     fig, ax = plt.subplots()
 

@@ -17,9 +17,7 @@ import matplotlib.pyplot as plt
 # %load_ext autoreload
 # %autoreload 1
 # %matplotlib widget
-# %aimport utils.audio
 # %aimport utils.breath
-# %aimport utils.callbacks
 
 from utils.audio import AudioObject
 from utils.breath import (
@@ -29,7 +27,6 @@ from utils.breath import (
     get_kde_threshold,
 )
 from utils.callbacks import call_mat_stim_trial_loader
-from utils.evfuncs import segment_notes
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
 from utils.video import get_triggers_from_audio
@@ -61,7 +58,6 @@ for i, f in enumerate(files):
 
 # %%
 
-
 # construct trial-by-trial df across all files
 all_trials = []
 all_breaths = []
@@ -69,15 +65,16 @@ all_breaths = []
 fs = 44100
 b, a = butter(N=2, Wn=50, btype="low", fs=fs)
 
+
 def check_call(trial, breath_norm, threshold, fs):
     """
-    pass in a row of `stim_trials` to check whether there was a call in file 
+    pass in a row of `stim_trials` to check whether there was a call in file
     """
     ii = np.array([trial["trial_start_s"], trial["trial_end_s"]]) * fs
     ii[1] = min(ii[1], len(breath_norm))  # account for trial_end_s == np.inf
     ii = ii.astype(int)
 
-    putative_call = (breath_norm[ii[0] : ii[1]].max() >= threshold)
+    putative_call = breath_norm[ii[0] : ii[1]].max() >= threshold
 
     return putative_call
 
@@ -113,9 +110,7 @@ for f in files:
     data = {
         "onsets": np.concatenate([onsets, stims]) * 1000,
         "offsets": np.concatenate([offsets, stims + 0.1]) * 1000,
-        "labels": np.concatenate(
-            [labels, ["Stimulus"] * len(stims)]
-        ),
+        "labels": np.concatenate([labels, ["Stimulus"] * len(stims)]),
     }
 
     calls, stim_trials, rejected_trials, file_info, call_types = (

@@ -1,6 +1,6 @@
 # %%
 # pca_test.py
-# 
+#
 # use df all_breaths from umap-all_breaths.py
 
 from sklearn.decomposition import PCA
@@ -20,14 +20,16 @@ pca.fit_transform(mat)
 # dir(pca)
 fig, ax = plt.subplots()
 
-p_indiv, = ax.plot(pca.explained_variance_ratio_, label="by component", c="tab:blue")
+(p_indiv,) = ax.plot(pca.explained_variance_ratio_, label="by component", c="tab:blue")
 
 ax1 = ax.twinx()
-p_cumsum, = ax1.plot(np.cumsum(pca.explained_variance_ratio_), label="cumulative", c="tab:orange")
+(p_cumsum,) = ax1.plot(
+    np.cumsum(pca.explained_variance_ratio_), label="cumulative", c="tab:orange"
+)
 
 ax.legend(handles=[p_indiv, p_cumsum], labelcolor="linecolor", loc="center right")
 
-ax.set(xlabel="PC", ylabel="explained variance", xlim=[-.9, 25])
+ax.set(xlabel="PC", ylabel="explained variance", xlim=[-0.9, 25])
 ax1.set(ylabel="cumulative explained variance")
 
 
