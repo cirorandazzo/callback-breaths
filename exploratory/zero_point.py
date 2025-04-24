@@ -5,8 +5,6 @@
 #
 # I wound up giving up on those files, since it was only the case in 1/4 birds and I didn't find an especially satisfactory resolution.
 
-import glob
-import json
 import os
 
 import numpy as np
@@ -20,15 +18,9 @@ import matplotlib.pyplot as plt
 # %autoreload 1
 # %matplotlib widget
 # %aimport utils.audio
-# %aimport utils.breath
-# %aimport utils.callbacks
 
-from utils.audio import AudioObject, plot_spectrogram
-from utils.breath import segment_breaths, make_notmat_vars, plot_breath_callback_trial
-from utils.callbacks import call_mat_stim_trial_loader
-from utils.evfuncs import segment_notes
-from utils.file import parse_birdname, parse_parameter_from_string
-from utils.video import get_triggers_from_audio
+from utils.audio import AudioObject
+from utils.breath import segment_breaths
 
 # %%
 # files
@@ -461,8 +453,12 @@ for i_file, file in enumerate(files):
     trough = top2[0] + np.argmin(dist_kde[np.arange(*top2)])
 
     ax_bp_dist.plot(x_dist, dist_kde, color="k")
-    ax_bp_dist.scatter(x_dist[top2], dist_kde[top2], color="r", marker="+", s=16, zorder=3)
-    ax_bp_dist.scatter(x_dist[trough], dist_kde[trough], color="r", marker="+", s=16, zorder=3)
+    ax_bp_dist.scatter(
+        x_dist[top2], dist_kde[top2], color="r", marker="+", s=16, zorder=3
+    )
+    ax_bp_dist.scatter(
+        x_dist[trough], dist_kde[trough], color="r", marker="+", s=16, zorder=3
+    )
 
 
 axs_wave[0, 0].set(ylabel="amplitude")
@@ -527,14 +523,18 @@ for i_file, file in enumerate(files):
     trough = top2[0] + np.argmin(dist_kde[np.arange(*top2)])
 
     ax_bp_dist.plot(x_dist, dist_kde, color="k")
-    ax_bp_dist.scatter(x_dist[top2], dist_kde[top2], color="r", marker="+", s=16, zorder=3)
-    ax_bp_dist.scatter(x_dist[trough], dist_kde[trough], color="r", marker="+", s=16, zorder=3)
-    
+    ax_bp_dist.scatter(
+        x_dist[top2], dist_kde[top2], color="r", marker="+", s=16, zorder=3
+    )
+    ax_bp_dist.scatter(
+        x_dist[trough], dist_kde[trough], color="r", marker="+", s=16, zorder=3
+    )
+
     # get insps/exps
     exps, insps = segment_breaths(
         breath_bandpass,
         do_filter=False,
-        threshold = lambda x: x_dist[trough],
+        threshold=lambda x: x_dist[trough],
         fs=None,
     )
     # plot lp waveform
@@ -630,19 +630,39 @@ for i_file, file in enumerate(files):
     if dist_kde[0] > dist_kde[min(x_peaks)]:
         x_peaks[x_peaks.argmin()] = 0
 
-    top2 = sorted(x_peaks[np.argsort(dist_kde[x_peaks])][-2:]) # get indices of highest 2 peaks.
+    top2 = sorted(
+        x_peaks[np.argsort(dist_kde[x_peaks])][-2:]
+    )  # get indices of highest 2 peaks.
 
-    trough = top2[0] + np.argmin(dist_kde[np.arange(*top2)])  # location of minimum value between these points
+    trough = top2[0] + np.argmin(
+        dist_kde[np.arange(*top2)]
+    )  # location of minimum value between these points
 
     ax_bp_dist.plot(x_dist, dist_kde, color="k")
-    ax_bp_dist.scatter(x_dist[top2], dist_kde[top2], color="#EE893B", marker="+", s=16, zorder=3, label="peaks")
-    ax_bp_dist.scatter(x_dist[trough], dist_kde[trough], color="r", marker="+", s=16, zorder=3, label="threshold")
-    
+    ax_bp_dist.scatter(
+        x_dist[top2],
+        dist_kde[top2],
+        color="#EE893B",
+        marker="+",
+        s=16,
+        zorder=3,
+        label="peaks",
+    )
+    ax_bp_dist.scatter(
+        x_dist[trough],
+        dist_kde[trough],
+        color="r",
+        marker="+",
+        s=16,
+        zorder=3,
+        label="threshold",
+    )
+
     # get insps/exps
     exps, insps = segment_breaths(
         breath_bandpass,
         do_filter=False,
-        threshold = lambda x: x_dist[trough],
+        threshold=lambda x: x_dist[trough],
         fs=None,
     )
     # plot lp waveform

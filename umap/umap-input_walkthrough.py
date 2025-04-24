@@ -136,15 +136,10 @@ ax.plot(
     **plot_kwargs,
 )
 
-insp = breath[ : np.ptp(trial["ii_first_insp"])]
+insp = breath[: np.ptp(trial["ii_first_insp"])]
 x = np.arange(len(insp)) / fs * 1000
 
-ax.plot(
-    x,
-    insp,
-    c="r",
-    **plot_kwargs
-)
+ax.plot(x, insp, c="r", **plot_kwargs)
 
 ax.set(
     title="insps_padded_right_zero",
@@ -252,7 +247,7 @@ ax.set(
 # %%
 # NORMALIZATION
 
-plt.close('all')
+plt.close("all")
 
 plot_kwargs = dict(linewidth=0.5, alpha=0.7)
 
@@ -265,13 +260,9 @@ for fname, file_trials in all_trials.groupby("wav_filename"):
     break
 
 
-file_trials["breath"].apply(
-    lambda trial: axs[0].plot(x, trial, **plot_kwargs)
-)
+file_trials["breath"].apply(lambda trial: axs[0].plot(x, trial, **plot_kwargs))
 
-file_trials["breath_norm"].apply(
-    lambda trial: axs[1].plot(x, trial, **plot_kwargs)
-)
+file_trials["breath_norm"].apply(lambda trial: axs[1].plot(x, trial, **plot_kwargs))
 
 
 hlines_plot_kwargs = dict(

@@ -1,5 +1,5 @@
 # %%
-# map-clusters.py
+# umap-01.02-map_clusters.py
 #
 # how do inspiratory & expiratory clusters map onto each other?
 # ie, which expirations come from which inspirations? (and v/v)
@@ -42,7 +42,7 @@ with open(all_breaths_path, "rb") as f:
 print("all breaths data loaded!")
 
 clusters = {}  # will store cluster ids
-embedding = {} # will store embeddings
+embedding = {}  # will store embeddings
 
 save_cluster_path = parent.joinpath("clusters.pickle")
 

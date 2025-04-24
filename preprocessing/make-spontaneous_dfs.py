@@ -10,8 +10,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
-from matplotlib.colors import Normalize
 
 from scipy.signal import butter
 
@@ -239,6 +237,7 @@ all_files["date"] = all_files.apply(
 # %%
 # add putative call
 
+
 def check_call(trial, threshold, all_breaths):
 
     if trial["type"] == "exp":
@@ -252,9 +251,12 @@ def check_call(trial, threshold, all_breaths):
             default=np.nan,
         )
     else:
-        raise ValueError(f"`{trial.type}` is an unknown breath type. Must be `insp` or `exp`.")
+        raise ValueError(
+            f"`{trial.type}` is an unknown breath type. Must be `insp` or `exp`."
+        )
 
     return ~(np.isnan(amplitude)) and (amplitude > threshold)
+
 
 all_breaths["putative_call"] = all_breaths.apply(
     check_call,
@@ -268,14 +270,18 @@ all_breaths["putative_call"] = all_breaths.apply(
 
 # call expirations should have amplitude > threshold
 ii_call_exps = (all_breaths.type == "exp") & (all_breaths.putative_call)
-assert all(all_breaths.loc[ii_call_exps, "amplitude"] > 1.1), "These should all be call exps!"
+assert all(
+    all_breaths.loc[ii_call_exps, "amplitude"] > 1.1
+), "These should all be call exps!"
 
 # noncall expirations should have amplitude <= threshold
 ii_non_call_exps = (all_breaths.type == "exp") & (~all_breaths.putative_call)
-assert all(all_breaths.loc[ii_non_call_exps, "amplitude"] <= 1.1), "These should all be non-call exps!"
+assert all(
+    all_breaths.loc[ii_non_call_exps, "amplitude"] <= 1.1
+), "These should all be non-call exps!"
 
 # all insps should match next expiration (or have putative_call = False if next exp DNE)
-ii_insps = (all_breaths.type == "insp")
+ii_insps = all_breaths.type == "insp"
 assert all(
     all_breaths.loc[ii_insps].apply(
         lambda x: (
@@ -310,7 +316,7 @@ all_files
 
 # %%
 
-l = len([a for a,b in all_files.groupby(by=["birdname", "date"])])
+l = len([a for a, b in all_files.groupby(by=["birdname", "date"])])
 print(f"{l} unique birds/dates found")
 
 
@@ -321,7 +327,9 @@ hist_kwargs = dict(
 
 fig, axs = plt.subplots(nrows=4, ncols=4, sharex=True, figsize=[25.6, 13.35])
 
-for ax, ((birdname, date), df_bird_date) in zip(axs.ravel(), all_files.groupby(by=["birdname", "date"])):
+for ax, ((birdname, date), df_bird_date) in zip(
+    axs.ravel(), all_files.groupby(by=["birdname", "date"])
+):
 
     ax.set(title=f"{birdname} {date} (n={len(df_bird_date)})")
 

@@ -1,5 +1,5 @@
 # %%
-# umap-train_first_insp.py
+# umap-00.00-train_first_insp.py
 #
 # first pass at umap, using only the first inspiration of each callback trial
 #
@@ -11,9 +11,7 @@
 #
 # Note: everything after cell "end-pad calls" and before cell "make umap embeddings" makes plots - you can skip these if you just want new embeddings.
 
-import glob
 from itertools import product
-import json
 import os
 import pathlib
 import pickle
@@ -86,7 +84,9 @@ all_trials = all_trials.loc[~ii_no_insps]
 
 
 # reject trials with insp too long
-ii_good_duration = all_trials["ii_first_insp"].apply(lambda x: np.ptp(x) <= max_insp_length_s * fs)
+ii_good_duration = all_trials["ii_first_insp"].apply(
+    lambda x: np.ptp(x) <= max_insp_length_s * fs
+)
 
 rejected = pd.concat([rejected, all_trials.loc[~ii_good_duration]])
 all_trials = all_trials.loc[ii_good_duration]
@@ -128,7 +128,9 @@ all_insps = np.vstack(all_trials["ii_first_insp"]).T
 
 window = (all_insps.min() - buffer_fr, all_insps.max() + buffer_fr)
 
-all_trials["ii_first_insp_window_aligned"] = all_trials["ii_first_insp"].apply(lambda x: x-window[0])
+all_trials["ii_first_insp_window_aligned"] = all_trials["ii_first_insp"].apply(
+    lambda x: x - window[0]
+)
 
 window
 
@@ -175,15 +177,15 @@ for wav_filename, file_trials in all_trials.groupby("wav_filename"):
         breath=breath,
         window=window,
         fs=fs,
-        centered=False
+        centered=False,
     )
-    
+
     # breath_norm: map [biggest_insp, zero_point] --> [-1, 0]
     insp_magnitude = np.abs(breath.min())
 
-    all_trials.loc[file_trials.index, "breath_norm"] = all_trials.loc[file_trials.index, "breath"].apply(
-        lambda x: x / insp_magnitude
-    )
+    all_trials.loc[file_trials.index, "breath_norm"] = all_trials.loc[
+        file_trials.index, "breath"
+    ].apply(lambda x: x / insp_magnitude)
 
 all_trials
 
@@ -191,7 +193,10 @@ all_trials
 # %%
 # get insp only trace (zero-padded to window size)
 
-def get_trace(trial, window, pad_value=0, pad=True, breath_field="breath", which="first_insp"):
+
+def get_trace(
+    trial, window, pad_value=0, pad=True, breath_field="breath", which="first_insp"
+):
 
     breath = trial[breath_field].copy()
 
@@ -218,7 +223,6 @@ def get_trace(trial, window, pad_value=0, pad=True, breath_field="breath", which
         breath[i_post:] = pad_value
     else:
         breath = breath[i_pre:i_post]
-
 
     return breath
 
@@ -269,14 +273,16 @@ all_trials
 threshold = 1.1  # absolute. most useful for normalized trace
 
 
-def check_call(trial, window, threshold, return_magnitudes=False, breath_field="breath_norm"):
+def check_call(
+    trial, window, threshold, return_magnitudes=False, breath_field="breath_norm"
+):
     # indices of exp in trial["breath"]
     exp_on, exp_off = trial["ii_next_exp"] - window[0]
-    exp_window = trial[breath_field][exp_on : exp_off]
+    exp_window = trial[breath_field][exp_on:exp_off]
 
-    if return_magnitudes: 
+    if return_magnitudes:
         insp_on, insp_off = trial["ii_first_insp"] - window[0]
-        insp_window = trial[breath_field][insp_on : insp_off]
+        insp_window = trial[breath_field][insp_on:insp_off]
 
         return (np.abs(insp_window.min()), exp_window.max())
 
@@ -307,7 +313,7 @@ def plot_segments(
 
     insp_on, insp_off = trial["ii_first_insp"] - window[0]
 
-    insp = trial[breath_field][insp_on : insp_off]
+    insp = trial[breath_field][insp_on:insp_off]
 
     ax.plot(
         trial[breath_field],
@@ -370,6 +376,7 @@ all_trials["putative_call"] = all_trials.apply(
 # %%
 # end-pad calls
 
+
 def pad_insps(trial, pad_to, pad_value):
 
     insp = trial["insps_unpadded"]
@@ -378,6 +385,7 @@ def pad_insps(trial, pad_to, pad_value):
     padded = np.pad(insp, [0, pad_length], mode="constant", constant_values=pad_value)
 
     return padded
+
 
 all_trials["insps_padded_call_discrete"] = all_trials.apply(
     lambda trial: pad_insps(
@@ -417,7 +425,9 @@ magnitudes = pd.DataFrame(
 
 fig, ax = plt.subplots()
 
-h, xedge, yedge, im = ax.hist2d(magnitudes["mag_insp"], magnitudes["mag_exp"], bins=50, cmap="cividis")
+h, xedge, yedge, im = ax.hist2d(
+    magnitudes["mag_insp"], magnitudes["mag_exp"], bins=50, cmap="cividis"
+)
 fig.colorbar(im, ax=ax, label="count")
 
 ax.set(
@@ -445,7 +455,7 @@ plt.show()
 # amplitude in exp_window_ms after first inspiration
 
 exp_window_fr = (300 / 1000) * fs
-exp_amps_to_plot = [1,2]
+exp_amps_to_plot = [1, 2]
 ii_exp_range = (magnitudes["mag_exp"] >= exp_amps_to_plot[0]) & (
     magnitudes["mag_exp"] <= exp_amps_to_plot[1]
 )
@@ -528,7 +538,10 @@ fig.tight_layout()
 
 hist_kwarg = dict(alpha=0.5, color="green")
 
-def plot_duration_hist(all_trials, subtitle, binwidth=10, hist_min=0,hist_max=860, **hist_kwarg):
+
+def plot_duration_hist(
+    all_trials, subtitle, binwidth=10, hist_min=0, hist_max=860, **hist_kwarg
+):
     all_insps = np.vstack(all_trials["ii_first_insp"]).T
 
     durations_ms = (all_insps[1, :] - all_insps[0, :]) / fs * 1000
@@ -541,13 +554,13 @@ def plot_duration_hist(all_trials, subtitle, binwidth=10, hist_min=0,hist_max=86
         durations_ms,
         bins=np.arange(hist_min, hist_max, binwidth),
     )
-    ax.stairs(hist, edges, fill=True,**hist_kwarg)
+    ax.stairs(hist, edges, fill=True, **hist_kwarg)
 
     ax.set(
         title=f"first inspiration duration: {subtitle}",
         xlabel="duration (ms)",
         ylabel="count",
-        xlim=[-10,360],
+        xlim=[-10, 360],
     )
 
     return fig, ax
@@ -606,7 +619,7 @@ bin_width_f = 0.02 * fs
 
 fig, ax = plt.subplots()
 
-edges = (  # uses same bins for onset & offset to ensure axis 
+edges = (  # uses same bins for onset & offset to ensure axis
     np.arange(
         all_insps.ravel().min(), all_insps.ravel().max() + bin_width_f, bin_width_f
     )
@@ -641,7 +654,16 @@ save_folder = pathlib.Path("./data/insp_bins-offset")
 histogram_kwarg = dict(bins=40, range=(0, 840))
 
 
-def plot_hist_and_binned(all_trials, label, fs, window, save_folder, breath_field="breath", color_by=None, **histogram_kwarg):
+def plot_hist_and_binned(
+    all_trials,
+    label,
+    fs,
+    window,
+    save_folder,
+    breath_field="breath",
+    color_by=None,
+    **histogram_kwarg,
+):
 
     all_insps = np.vstack(all_trials["ii_first_insp"]).T
     offsets_ms = all_insps[1, :] / fs * 1000
@@ -689,20 +711,13 @@ def plot_hist_and_binned(all_trials, label, fs, window, save_folder, breath_fiel
         # plot all traces in this bin
         if color_by is not None:
             for i, category in enumerate(categories):
-                ii_cat = all_trials.iloc[ii_bin].index.get_level_values(color_by) == category
-
-                ax.plot(
-                    x,
-                    breaths[:, ii_cat],
-                    c=f"C{i}",
-                    **trace_kwargs
+                ii_cat = (
+                    all_trials.iloc[ii_bin].index.get_level_values(color_by) == category
                 )
+
+                ax.plot(x, breaths[:, ii_cat], c=f"C{i}", **trace_kwargs)
         else:
-            ax.plot(
-                x,
-                breaths,
-                **trace_kwargs
-            )
+            ax.plot(x, breaths, **trace_kwargs)
 
         # plot mean trace
         ax.plot(
@@ -735,7 +750,14 @@ os.makedirs(all_save_folder)
 
 # for all trials
 a = plot_hist_and_binned(
-    all_trials, "all_birds", fs, window, all_save_folder, color_by="birdname", breath_field=breath_field, **histogram_kwarg
+    all_trials,
+    "all_birds",
+    fs,
+    window,
+    all_save_folder,
+    color_by="birdname",
+    breath_field=breath_field,
+    **histogram_kwarg,
 )
 
 # for individual birds
@@ -794,7 +816,7 @@ for i, condition in enumerate(conditions):
     with open(save_folder.joinpath(f"log.txt"), "a") as f:
         f.write(f"- embedding{i}:\n")
 
-        for k,v in condition.items():
+        for k, v in condition.items():
             f.write(f"  - {k}: {v}\n")
 
     insp_type = condition.pop("insp_col_name")

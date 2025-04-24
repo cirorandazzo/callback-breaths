@@ -1,5 +1,5 @@
 # %%
-# umap-add_spontaneous.py
+# umap-02.00-add_spontaneous.py
 #
 # embed spontaneous breaths in umap space of callback data
 # see umap-analyze_spontaneous.py for analysis

@@ -408,7 +408,9 @@ print(f"Successfully dumped data to: {pickle_file}")
 # %%
 # PICKLE LOAD ALL_TRIALS & DF
 
-with open(r".\data\rolling_min-multi\rolling_min_subtracted-by_trial.pickle", "rb") as f:
+with open(
+    r".\data\rolling_min-multi\rolling_min_subtracted-by_trial.pickle", "rb"
+) as f:
     all_trials = pickle.load(f)
 
 with open(r".\data\rolling_min-multi\rolling_min_subtracted.pickle", "rb") as f:
@@ -532,7 +534,7 @@ else:
 extant_records = merge_json(
     records,
     extant_records,
-    dict_fields={"plot_filename" : "lowpass_trace-rolling_min_seg"},
+    dict_fields={"plot_filename": "lowpass_trace-rolling_min_seg"},
     fields_to_remove=("breath_zero_point", "calls_index"),
 )
 
