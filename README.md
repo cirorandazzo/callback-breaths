@@ -24,10 +24,32 @@ Code for analyzing respiratory traces during callback experiments in the Brainar
 
 ### UMAP
 
-- `umap-train_first_insp.py`: first pass at umap, using only the first inspiration of each callback trial
-  - Analysis in `umap-first_insp_only.py`
-- `umap-train_all.py`: analyzing umap on all breaths (implemented for either insp or exp)
-  - Analysis in `umap-all_breaths.py`
+#### 00: callback, first insp only
 
-- `map-clusters.py`: which expirations come from which inspirations? (map insp & exp clusters)
-- `umap-input_walkthrough.py`: plot examples of the types of traces used for umap input
+First pass at umap, using only the first inspiration of each callback trial
+
+- `umap-00.00-train_first_insp.py`
+- `umap-00.01-analyze_first_insp.py`
+
+#### 01: callback, all breaths
+
+Train UMAP on all of 1 breath segment type in callback data (eg, all insps). Can adjust which segment in files.
+
+- `umap-01.00-train_all_cb.py`
+- `umap-01.01-analyze_all_cb.py`
+- `umap-01.02-map_clusters.py`
+  - Which expirations come from which inspirations? Map insp and exp clusters.
+  - I didn't refine expiration embedding/clustering particularly well, so this wasn't especially revealing.
+
+#### 02: spontaneous
+
+Consider how spontaneous breaths fall into callback-trained embedding. No additional UMAP training goes on here.
+
+- `umap-02.00-add_spontaneous.py`
+- `umap-02.01-analyze_spontaneous.py`
+
+#### Miscellaneous
+
+- `umap-input_walkthrough.py`
+  - Plot examples of the types of traces used for umap input.
+  - Note: nearly all of the later embeddings simply use interpolated - UMAP is most useful for determining shape, since duration, timing, etc. can be added back later.
