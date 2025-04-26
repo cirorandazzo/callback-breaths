@@ -66,7 +66,7 @@ for f in files:
 
     # load audio
     channels = AudioObject.from_wav(
-        f, channels="all", channel_names=["audio", "breathing", "trigger"]
+        f, channel="all", channel_names=["audio", "breathing", "trigger"]
     )
 
     assert fs == channels[1].fs, "Wrong sample rate!"
@@ -159,7 +159,7 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
         # with open( pickled_audio, "rb") as f:
         #     ao = pickle.load(f)
     else:
-        ao = AudioObject.from_wav(file, channels=0)
+        ao = AudioObject.from_wav(file, channel=0)
         ao.filtfilt_butter_default(f_low=500, f_high=15e3)
         ao.make_spectrogram()
 

@@ -83,7 +83,7 @@ for f in files:
 
     # load audio
     channels = AudioObject.from_wav(
-        f, channels="all", channel_names=["audio", "breathing", "trigger"]
+        f, channel="all", channel_names=["audio", "breathing", "trigger"]
     )
 
     assert fs == channels[1].fs, "Wrong sample rate!"
@@ -199,7 +199,7 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
 
     # load audio & relevant stims
     stim_trials = all_trials.xs(file)
-    ao = AudioObject.from_wav(file, channels=1)
+    ao = AudioObject.from_wav(file, channel=1)
 
     audiofile_plot_folder = os.path.join(figure_root_dir, bird, basename)
     os.makedirs(audiofile_plot_folder, exist_ok=exist_ok)

@@ -79,9 +79,9 @@ b, a = butter(**filt_params)
 for wav_path, calls in all_breaths.groupby(level="wav_filename"):
 
     # load channels
-    audio = AudioObject.from_wav(wav_path, channels=0).audio
+    audio = AudioObject.from_wav(wav_path, channel=0).audio
 
-    ao = AudioObject.from_wav(wav_path, channels=1, b=b, a=a)
+    ao = AudioObject.from_wav(wav_path, channel=1, b=b, a=a)
     breath = ao.audio_filt
 
     assert ao.fs == fs, "Wrong sample rate!"

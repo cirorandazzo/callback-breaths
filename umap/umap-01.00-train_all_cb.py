@@ -73,7 +73,7 @@ for wav_filename, file_breaths in all_breaths.groupby("wav_filename"):
     assert len(zero_point) == 1
     zero_point = zero_point[0]
 
-    ao = AudioObject.from_wav(wav_filename, channels=1, b=b, a=a)
+    ao = AudioObject.from_wav(wav_filename, channel=1, b=b, a=a)
 
     # breath = ao.audio.astype(float)
     breath = ao.audio_filt
