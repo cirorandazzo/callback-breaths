@@ -1,5 +1,4 @@
 data/
-tests/
 
 # original matlab code & some sample data for phase calculation (spontaneous)
 zk-phase/
