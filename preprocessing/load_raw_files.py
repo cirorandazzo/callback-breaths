@@ -8,11 +8,14 @@ from pathlib import Path
 from utils.breath.preprocess import preprocess_files
 
 
-input_parent = Path(r"M:\ESZTER\BEHAVIOR\AIR SAC CALLS\HVC LESION\ASPIRATION")
-output_parent = Path(r"M:\randazzo\breathing\processed")
+def main():
+    # %%
+    # PATHS
 
-# %%
-if __name__ == "__main__":
+    n_jobs = 10
+    input_parent = Path(r"M:\ESZTER\BEHAVIOR\AIR SAC CALLS\HVC LESION\ASPIRATION")
+    output_parent = Path(r"M:\randazzo\breathing\processed")
+
     # %%
     # CALLBACKS
 
@@ -49,6 +52,7 @@ if __name__ == "__main__":
         has_stims=True,
         stim_length=0.1,
         output_exist_ok=False,
+        n_jobs=n_jobs,
     )
 
     # %%
@@ -76,6 +80,7 @@ if __name__ == "__main__":
         has_stims=False,
         stim_length=0.1,
         output_exist_ok=False,
+        n_jobs=n_jobs,
     )
 
     assert False, "check hvc lesion cb sample rate"
@@ -104,6 +109,8 @@ if __name__ == "__main__":
         #   - excludes iso. >=1 day for each bird
     ]
 
+    files = [file for path in paths for file in path.glob("**/*.wav")]
+
     preprocess_files(
         files=files,
         output_folder=output_parent.joinpath("hvc_lesion_callback"),
@@ -113,11 +120,14 @@ if __name__ == "__main__":
         has_stims=True,
         stim_length=0.1,
         output_exist_ok=False,
+        n_jobs=n_jobs,
     )
 
     # %%
     # HVC LESION - SPONTANEOUS
     #
+
+    assert False, "check hvc lesion spontaneous sample rate"
 
     paths = [
         input_parent.joinpath(p)
@@ -130,7 +140,7 @@ if __name__ == "__main__":
         ]
     ]
 
-    assert False, "check hvc lesion spontaneous sample rate"
+    files = [file for path in paths for file in path.glob("**/*.cbin")]
 
     preprocess_files(
         files=files,
@@ -141,4 +151,13 @@ if __name__ == "__main__":
         has_stims=False,
         stim_length=0.1,
         output_exist_ok=False,
+        n_jobs=n_jobs,
     )
+
+    return
+
+
+# %%
+if __name__ == "__main__":
+
+    main()
