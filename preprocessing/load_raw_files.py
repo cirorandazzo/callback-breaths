@@ -12,7 +12,7 @@ def main():
     # %%
     # PATHS
 
-    n_jobs = 10
+    n_jobs = 9
     input_parent = Path(r"M:\ESZTER\BEHAVIOR\AIR SAC CALLS\HVC LESION\ASPIRATION")
     output_parent = Path(r"M:\randazzo\breathing\processed")
 
@@ -45,7 +45,7 @@ def main():
 
     preprocess_files(
         files=files,
-        output_folder=output_parent.joinpath("callbacks"),
+        output_folder=output_parent.joinpath("callback"),
         prefix="callback",
         fs=44100,
         channel_map={"audio": 0, "breath": 1, "stim": 2},
@@ -54,8 +54,6 @@ def main():
         output_exist_ok=False,
         n_jobs=n_jobs,
     )
-
-    assert False, "run callbacks only!"
 
     # %%
     # SPONTANEOUS
@@ -85,8 +83,6 @@ def main():
         n_jobs=n_jobs,
     )
 
-    assert False, "check hvc lesion cb sample rate"
-
     # %%
     # HVC LESION - CALLBACK
     #
@@ -111,7 +107,7 @@ def main():
         #   - excludes iso. >=1 day for each bird
     ]
 
-    files = [file for path in paths for file in path.glob("**/*.wav")]
+    files = [file for path in paths for file in path.glob("**/*-B*.wav")]
 
     preprocess_files(
         files=files,
@@ -128,8 +124,6 @@ def main():
     # %%
     # HVC LESION - SPONTANEOUS
     #
-
-    assert False, "check hvc lesion spontaneous sample rate"
 
     paths = [
         input_parent.joinpath(p)
