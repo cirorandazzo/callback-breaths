@@ -55,6 +55,8 @@ def main():
         n_jobs=n_jobs,
     )
 
+    assert False, "run callbacks only!"
+
     # %%
     # SPONTANEOUS
 
