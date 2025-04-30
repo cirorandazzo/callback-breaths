@@ -76,7 +76,7 @@ for f in files:
 
     # load audio
     channels = AudioObject.from_wav(
-        f, channels="all", channel_names=["audio", "breathing", "trigger"]
+        f, channel="all", channel_names=["audio", "breathing", "trigger"]
     )
 
     assert fs == channels[1].fs, "Wrong sample rate!"

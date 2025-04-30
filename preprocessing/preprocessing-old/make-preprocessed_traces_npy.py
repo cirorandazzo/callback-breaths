@@ -45,7 +45,7 @@ b, a = butter(**filt_params)
 
 for wav_path in original_files:
 
-    ao = AudioObject.from_wav(wav_path, channels=1, b=b, a=a)
+    ao = AudioObject.from_wav(wav_path, channel=1, b=b, a=a)
     breath = ao.audio_filt
 
     assert ao.fs == fs, "Wrong sample rate!"
