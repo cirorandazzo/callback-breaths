@@ -60,7 +60,13 @@ if __name__ == "__main__":
 
     # breath type
     breath_type = "insp"
+    call_only = True
 
+    # expiratory amplitude threshold for putative call
+    assert (
+        False
+    ), "This may be a bad threshold with newest normalization technique! Rerun some early scripts looking at amplitudes."
+    threshold = 1.1
 
     # %%
     # load metadata dfs
@@ -69,16 +75,26 @@ if __name__ == "__main__":
 
     all_files, all_breaths = load_datasets(datasets, file_format, fs_dataset=fs_dataset)
 
+    # add next_amplitude and next_type
+    for col in ["type", "amplitude"]:
+        all_breaths[f"next_{col}"] = (
+            all_breaths[col].groupby(by="audio_filename").shift(-1)
+        )
+
     # cut to only this breath type
     all_breaths = all_breaths.loc[all_breaths.type == breath_type]
+
+    if type == "insp":
+        all_breaths["putative_call"] = all_breaths["next_amplitude"] > threshold
+    else:
+        all_breaths["putative_call"] = all_breaths["amplitude"] > threshold
+
+    # if call_only:
+    #     all_breaths = all_breaths.loc[all_breaths["putative_call"]]
 
     # sort indices
     all_breaths.sort_index(inplace=True)
     all_files.sort_index(inplace=True)
-
-    print(f"Loaded! (Total time elapsed: {time.time() - program_start}s)\n")
-
-    all_breaths
 
     # %%
     # load traces df
@@ -99,9 +115,17 @@ if __name__ == "__main__":
     # %%
     # assert traces match metadata
 
-    assert len(all_breaths) == len(df_traces), f"Different lengths! all_breaths: {len(all_breaths)} | df_traces: {len(df_traces)}"
+    with_traces = all_breaths.index.isin(df_traces.index)
+    if not with_traces.all():
+        print(
+            f"Not all trials in `all_breaths` have traces in `df_traces`! Offending rows ({sum(with_traces)}/{len(with_traces)}):"
+        )
+        for i, name in enumerate(df_traces.loc[with_traces].index):
+            print(f"{i:02}: {name}")
 
-    assert all(all_breaths.index == df_traces.index), "Indices don't match!"
+        raise KeyError("Not all trials in `all_breaths` have traces in `df_traces`!")
+    else:
+        print(f"Found traces for all {len(with_traces)} rows!")
 
     # %%
     # check for errors
@@ -116,7 +140,9 @@ if __name__ == "__main__":
 
     print(f"{len(errored)} breaths had errors.")
 
-    assert sum(ii_error) == 0, "Deal with these errors before constructing UMAP train data below."
+    assert (
+        sum(ii_error) == 0
+    ), "Deal with these errors before constructing UMAP train data below."
 
     # %%
     # subsample
@@ -152,7 +178,7 @@ if __name__ == "__main__":
 
     print(f"Train data shape: {data.shape}")
     print(f"Subsampled! (Total time elapsed: {time.time() - program_start}s)\n")
-    
+
     # %%
 
     print("Making kwargs for gridsearch...")
@@ -168,12 +194,17 @@ if __name__ == "__main__":
             min_dist=0.01,
             metric="cosine",
         ),
+        dict(
+            n_neighbors=500,
+            min_dist=0.1,
+            metric="euclidean",
+        ),
     ]
 
     umap_params = dict(
-        n_neighbors=[5, 10, 100, 500],
-        min_dist=[0.001, 0.01, 0.1, 0.5],
-        metric=["euclidean", "cosine"],
+        n_neighbors=[500, 800, 1400, 2000],
+        min_dist=[0.01, 0.1, 0.5, 0.7],
+        metric=["euclidean"],
     )
 
     # note: "breath_col" hardcoded to "breath_interpolated"
@@ -188,7 +219,6 @@ if __name__ == "__main__":
         else:
             conditions.append(these_params)
 
-
     print(f"{len(conditions)} models to be trained:")
 
     print(f"Kwargs prepared! (Total time elapsed: {time.time() - program_start}s)\n")
@@ -197,11 +227,11 @@ if __name__ == "__main__":
     # %%
     # run umap gridsearch
     # 70 min for 2
-    
+
     print("Training UMAP embeddings...")
 
     errors = run_umap_gridsearch(data, conditions, embedding_path, "insp", True, False)
-    
+
     print(f"Finished training UMAPs! {len(errors)} errors.")
     print(f"Total time elapsed: {time.time() - program_start}s)\n")
 
