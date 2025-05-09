@@ -4,7 +4,7 @@
 import time
 import pickle
 
-from utils.breath.preprocess import load_datasets
+from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
 from utils.breath.traces import process_all_segments
 
 if __name__ == "__main__":
@@ -32,8 +32,12 @@ if __name__ == "__main__":
 
     file_format = r"M:\randazzo\breathing\processed\{dataset}\{dataset}-{file}.pickle"
 
-    all_files, all_breaths = load_datasets(datasets, file_format)
+    all_files, all_breaths = load_datasets(
+        datasets, file_format, fs_dataset, assertions=False
+    )
+    all_files, all_breaths = TEMP_assert_file_quality(all_files, all_breaths)
 
+    # store
     all_files["fs"] = all_files.dataset.map(fs_dataset)
     all_breaths["fs"] = all_breaths.dataset.map(fs_dataset)
 

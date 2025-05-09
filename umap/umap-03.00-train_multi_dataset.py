@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import pairwise_distances
 
-from utils.breath.preprocess import load_datasets
+from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
 from utils.umap import run_umap_gridsearch
 
 # %load_ext autoreload
@@ -63,17 +63,17 @@ if __name__ == "__main__":
     call_only = True
 
     # expiratory amplitude threshold for putative call
-    assert (
-        False
-    ), "This may be a bad threshold with newest normalization technique! Rerun some early scripts looking at amplitudes."
-    threshold = 1.1
+    threshold = 6
 
     # %%
     # load metadata dfs
 
     print("Loading metadata datasets...")
 
-    all_files, all_breaths = load_datasets(datasets, file_format, fs_dataset=fs_dataset)
+    all_files, all_breaths = load_datasets(
+        datasets, file_format, fs_dataset=fs_dataset, assertions=False
+    )
+    all_files, all_breaths = TEMP_assert_file_quality(all_files, all_breaths)
 
     # add next_amplitude and next_type
     for col in ["type", "amplitude"]:
