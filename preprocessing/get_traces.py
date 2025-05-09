@@ -1,5 +1,7 @@
 # %%
 # get_traces
+#
+# 12420s for 25938 files (manakin)
 
 import time
 import pickle
@@ -61,7 +63,7 @@ if __name__ == "__main__":
         data_row=1,
         interpolate_length=300,
         pad_frames=0,
-        n_jobs=8,
+        n_jobs=11,
     )
 
     # %%

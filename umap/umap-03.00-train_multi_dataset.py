@@ -2,6 +2,9 @@
 # umap-03.00-train_multi_dataset.py
 #
 # Training one embedding with data from multiple datasets (callback & spont data in ctrl, hvc_lesion conditions)
+#
+# all insps, 25 conditions. n_neighbors [5, 1400], min_dist [1e-3, .7], euclidean dist
+# >> 13983s manakin
 
 from itertools import product
 import os
@@ -89,8 +92,8 @@ if __name__ == "__main__":
     else:
         all_breaths["putative_call"] = all_breaths["amplitude"] > threshold
 
-    # if call_only:
-    #     all_breaths = all_breaths.loc[all_breaths["putative_call"]]
+    if call_only:
+        all_breaths = all_breaths.loc[all_breaths.putative_call]
 
     # sort indices
     all_breaths.sort_index(inplace=True)
@@ -126,6 +129,16 @@ if __name__ == "__main__":
         raise KeyError("Not all trials in `all_breaths` have traces in `df_traces`!")
     else:
         print(f"Found traces for all {len(with_traces)} rows!")
+
+    # %%
+    # remove traces with inf
+    # TODO: figure out exactly why this happens.
+    # file: M:\ESZTER\BEHAVIOR\AIR SAC CALLS\HVC LESION\ASPIRATION\pk19br8\postLesion\spontaneous\pk19br8_030323_134724.107.cbin
+
+    ii_finite = df_traces.data.apply(lambda x: np.all(np.isfinite(x)))
+
+    df_traces = df_traces.loc[ii_finite]
+    all_breaths = all_breaths.loc[ii_finite, :]
 
     # %%
     # check for errors
@@ -183,31 +196,14 @@ if __name__ == "__main__":
 
     print("Making kwargs for gridsearch...")
 
-    exclude = [
-        dict(
-            n_neighbors=5,
-            min_dist=0.01,
-            metric="euclidean",
-        ),
-        dict(
-            n_neighbors=5,
-            min_dist=0.01,
-            metric="cosine",
-        ),
-        dict(
-            n_neighbors=500,
-            min_dist=0.1,
-            metric="euclidean",
-        ),
-    ]
+    # particular parameter dicts to exclude
+    exclude = []
 
     umap_params = dict(
-        n_neighbors=[500, 800, 1400, 2000],
-        min_dist=[0.01, 0.1, 0.5, 0.7],
+        n_neighbors=[5, 10, 100, 700, 1400],
+        min_dist=[0.001, 0.01, 0.1, 0.5, 0.7],
         metric=["euclidean"],
     )
-
-    # note: "breath_col" hardcoded to "breath_interpolated"
 
     # make parameter combinations
     conditions = []
