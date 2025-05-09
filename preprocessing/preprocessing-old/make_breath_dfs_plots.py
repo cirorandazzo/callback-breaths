@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 # %matplotlib widget
 # %aimport utils.breath
 
-from utils.audio import AudioObject
+from utils.audio import AudioObject, get_triggers_from_audio
 from utils.breath import (
     segment_breaths,
     make_notmat_vars,
@@ -29,7 +29,6 @@ from utils.breath import (
 from utils.callbacks import call_mat_stim_trial_loader
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
-from utils.video import get_triggers_from_audio
 
 # %%
 # get filelist

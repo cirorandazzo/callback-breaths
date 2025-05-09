@@ -15,13 +15,12 @@ from scipy.stats import gaussian_kde
 
 import matplotlib.pyplot as plt
 
-from utils.audio import AudioObject
+from utils.audio import AudioObject, get_triggers_from_audio
 from utils.breath import make_notmat_vars, plot_breath_callback_trial, segment_breaths
 from utils.callbacks import call_mat_stim_trial_loader
 from utils.evfuncs import segment_notes
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
-from utils.video import get_triggers_from_audio
 
 # %%
 # %load_ext autoreload

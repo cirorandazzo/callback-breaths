@@ -24,11 +24,10 @@ matplotlib.use("Agg")  # attempt to prevent spectrogram-related memory leak :(
 # %aimport utils.breath
 # %aimport utils.callbacks
 
-from utils.audio import AudioObject
+from utils.audio import AudioObject, get_triggers_from_audio
 from utils.callbacks import call_mat_stim_trial_loader
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
-from utils.video import get_triggers_from_audio
 
 # %%
 # get filelist
