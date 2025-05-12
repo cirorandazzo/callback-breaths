@@ -197,12 +197,18 @@ if __name__ == "__main__":
     print("Making kwargs for gridsearch...")
 
     # particular parameter dicts to exclude
-    exclude = []
+    exclude = [
+        {"n_neighbors": 1400, "min_dist": 0.001, "metric": "euclidean"},
+        {"n_neighbors": 1400, "min_dist": 0.01, "metric": "euclidean"},
+        {"n_neighbors": 1400, "min_dist": 0.1, "metric": "euclidean"},
+        {"n_neighbors": 1400, "min_dist": 0.5, "metric": "euclidean"},
+        {"n_neighbors": 1400, "min_dist": 0.7, "metric": "euclidean"},
+    ]
 
     umap_params = dict(
-        n_neighbors=[5, 10, 100, 700, 1400],
+        n_neighbors=[1400, 2000, 3000, 5000],
         min_dist=[0.001, 0.01, 0.1, 0.5, 0.7],
-        metric=["euclidean"],
+        metric=["euclidean", "cosine"],
     )
 
     # make parameter combinations
