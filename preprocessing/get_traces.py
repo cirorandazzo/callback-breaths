@@ -1,7 +1,8 @@
 # %%
 # get_traces
 #
-# 12420s for 25938 files (manakin)
+# ~13k seconds for ~26k files across 4 datasets (manakin)
+
 
 import time
 import pickle
@@ -9,6 +10,7 @@ import pickle
 from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
 from utils.breath.traces import process_all_segments
 
+# %%
 if __name__ == "__main__":
 
     # %%
@@ -39,10 +41,6 @@ if __name__ == "__main__":
     )
     all_files, all_breaths = TEMP_assert_file_quality(all_files, all_breaths)
 
-    # store
-    all_files["fs"] = all_files.dataset.map(fs_dataset)
-    all_breaths["fs"] = all_breaths.dataset.map(fs_dataset)
-
     print(f"dfs loaded! [total elapsed: {time.time() - st}s]")
 
     # %%
@@ -54,7 +52,7 @@ if __name__ == "__main__":
     print(f"insps segmented! [total elapsed: {time.time() - st}s]")
 
     # %%
-    # small subset for testing
+    # process segments
 
     print("Starting processing...")
 
@@ -63,7 +61,8 @@ if __name__ == "__main__":
         data_row=1,
         interpolate_length=300,
         pad_frames=0,
-        n_jobs=11,
+        n_jobs=10,
+        pickle_save_directory=r"M:\randazzo\breathing\processed\traces",  # None to suppress saving by file.
     )
 
     # %%
