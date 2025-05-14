@@ -68,6 +68,8 @@ if __name__ == "__main__":
     # expiratory amplitude threshold for putative call
     threshold = 6
 
+    os.makedirs(embedding_path, exist_ok=False)
+
     # %%
     # load metadata dfs
 
@@ -87,7 +89,7 @@ if __name__ == "__main__":
     # cut to only this breath type
     all_breaths = all_breaths.loc[all_breaths.type == breath_type]
 
-    if type == "insp":
+    if breath_type == "insp":
         all_breaths["putative_call"] = all_breaths["next_amplitude"] > threshold
     else:
         all_breaths["putative_call"] = all_breaths["amplitude"] > threshold
@@ -182,6 +184,11 @@ if __name__ == "__main__":
         # Append sampled indices
         idx_subsampled.extend(ii_sampled)
 
+    # save subsampled data indices
+    train_idx_path = Path(embedding_path) / "train_idx.pickle"
+    with open(train_idx_path, "wb") as f:
+        pickle.dump(idx_subsampled, f)
+
     print(idx_subsampled)
 
     # %%
@@ -202,7 +209,7 @@ if __name__ == "__main__":
     umap_params = dict(
         n_neighbors=[5, 10, 100, 700, 1400],
         min_dist=[0.001, 0.01, 0.1, 0.5, 0.7],
-        metric=["euclidean"],
+        metric=["euclidean", "cosine"],
     )
 
     # make parameter combinations
