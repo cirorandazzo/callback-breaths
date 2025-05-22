@@ -15,13 +15,12 @@ from scipy.stats import gaussian_kde
 
 import matplotlib.pyplot as plt
 
-from utils.audio import AudioObject
+from utils.audio import AudioObject, get_triggers_from_audio
 from utils.breath import make_notmat_vars, plot_breath_callback_trial, segment_breaths
 from utils.callbacks import call_mat_stim_trial_loader
 from utils.evfuncs import segment_notes
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
-from utils.video import get_triggers_from_audio
 
 # %%
 # %load_ext autoreload
@@ -215,7 +214,7 @@ processed_data = []
 
 for i_file, file in enumerate(files):
     # ===== LOAD & FILTER ===== #
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
     breath_lowpass = breath.audio_filt  # get lowpass filt
 
@@ -331,7 +330,7 @@ for i_file in df.index:
 
     # load audio
     channels = AudioObject.from_wav(
-        f, channels="all", channel_names=["audio", "breathing", "trigger"]
+        f, channel="all", channel_names=["audio", "breathing", "trigger"]
     )
 
     assert fs == channels[1].fs
@@ -455,7 +454,7 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
 
     # load audio & relevant stims
     stim_trials = all_trials.xs(file)
-    ao = AudioObject.from_wav(file, channels=1)
+    ao = AudioObject.from_wav(file, channel=1)
 
     audiofile_plot_folder = os.path.join(figure_root_dir, bird, basename)
     os.makedirs(audiofile_plot_folder, exist_ok=exist_ok)

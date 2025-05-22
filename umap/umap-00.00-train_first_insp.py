@@ -168,7 +168,7 @@ for wav_filename, file_trials in all_trials.groupby("wav_filename"):
     assert len(zero_point) == 1
     zero_point = zero_point[0]
 
-    breath = AudioObject.from_wav(wav_filename, channels=1, b=b, a=a).audio_filt
+    breath = AudioObject.from_wav(wav_filename, channel=1, b=b, a=a).audio_filt
     breath -= zero_point
 
     all_trials.loc[file_trials.index, "breath"] = file_trials.apply(

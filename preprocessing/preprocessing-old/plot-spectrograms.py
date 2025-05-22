@@ -1,7 +1,7 @@
 # %%
-# make_breath_dfs_plots.py
+# plot_spectrograms.py
 #
-# make dataframe for cbpt metadata & kde-threshold plots
+# spectrogram plots for cbpt
 
 import glob
 import json
@@ -12,24 +12,22 @@ import numpy as np
 import pandas as pd
 from scipy.signal import butter, filtfilt
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")  # attempt to prevent spectrogram-related memory leak :(
 
 # %load_ext autoreload
 # %autoreload 1
 # %matplotlib widget
+# %aimport utils.audio
 # %aimport utils.breath
+# %aimport utils.callbacks
 
-from utils.audio import AudioObject
-from utils.breath import (
-    segment_breaths,
-    make_notmat_vars,
-    plot_breath_callback_trial,
-    get_kde_threshold,
-)
+from utils.audio import AudioObject, get_triggers_from_audio
 from utils.callbacks import call_mat_stim_trial_loader
 from utils.file import parse_birdname, parse_parameter_from_string
 from utils.json import merge_json, NumpyEncoder
-from utils.video import get_triggers_from_audio
 
 # %%
 # get filelist
@@ -57,60 +55,31 @@ for i, f in enumerate(files):
     print(f"{i}. {os.path.split(f)[1]}")
 
 # %%
-
 # construct trial-by-trial df across all files
 all_trials = []
-all_breaths = []
 
 fs = 44100
 b, a = butter(N=2, Wn=50, btype="low", fs=fs)
-
-
-def check_call(trial, breath_norm, threshold, fs):
-    """
-    pass in a row of `stim_trials` to check whether there was a call in file
-    """
-    ii = np.array([trial["trial_start_s"], trial["trial_end_s"]]) * fs
-    ii[1] = min(ii[1], len(breath_norm))  # account for trial_end_s == np.inf
-    ii = ii.astype(int)
-
-    putative_call = breath_norm[ii[0] : ii[1]].max() >= threshold
-
-    return putative_call
-
 
 for f in files:
 
     # load audio
     channels = AudioObject.from_wav(
-        f, channels="all", channel_names=["audio", "breathing", "trigger"]
+        f, channel="all", channel_names=["audio", "breathing", "trigger"]
     )
 
     assert fs == channels[1].fs, "Wrong sample rate!"
 
-    channels[1].filtfilt(b, a)  # filter breathing
-    breath = channels[1].audio_filt
+    channels[0].filtfilt(b, a)  # filter breathing
+    audio = channels[0].audio_filt
 
     # threshold stimuli; assume 100ms length
     stims = get_triggers_from_audio(channels[2].audio, crossing_direction="down") / fs
 
-    # segment breaths based on smoothed waveform
-    breath_zero_point = get_kde_threshold(breath)
-    centering = lambda x: breath_zero_point
-    exps, insps = segment_breaths(breath, channels[1].fs, threshold=centering, b=b, a=a)
-
-    # get onsets, offsets, labels
-    onsets, offsets, labels = make_notmat_vars(
-        exps, insps, len(breath), exp_label="exp", insp_label="insp"
-    )
-    onsets = onsets / fs
-    offsets = offsets / fs
-
-    # mimic .not.mat format
     data = {
-        "onsets": np.concatenate([onsets, stims]) * 1000,
-        "offsets": np.concatenate([offsets, stims + 0.1]) * 1000,
-        "labels": np.concatenate([labels, ["Stimulus"] * len(stims)]),
+        "onsets": stims * 1000,
+        "offsets": (stims + 0.1) * 1000,
+        "labels": np.array(["Stimulus"] * len(stims)),
     }
 
     calls, stim_trials, rejected_trials, file_info, call_types = (
@@ -123,56 +92,33 @@ for f in files:
         )
     )
 
-    calls["wav_filename"] = f
     stim_trials["wav_filename"] = f
-    stim_trials["breath_zero_point"] = breath_zero_point
-
-    # putative stim phase: for now just "exp" or "insp", based on first "call"
-    stim_trials["stim_phase"] = stim_trials["calls_in_range"].apply(
-        lambda x: calls.loc[x[0], "type"] if len(x) > 0 else "error"
-    )
-
-    # putative calls: relative to deepest insp in file.
-    breath_norm = (breath - breath_zero_point) / np.abs(breath.min())
-
-    stim_trials["putative_call"] = stim_trials.apply(
-        check_call,
-        breath_norm=breath_norm,
-        threshold=1.1,
-        fs=fs,
-        axis=1,
-    )
 
     all_trials.append(
         stim_trials.reset_index().set_index(["wav_filename", "stims_index"])
     )
 
-    all_breaths.append(calls.reset_index().set_index(["wav_filename", "calls_index"]))
-
 all_trials = pd.concat(all_trials).sort_index()
-all_breaths = pd.concat(all_breaths).sort_index()
 
 all_trials
-
-# %%
-# pickle all_trials
-figure_root_dir = "./data/breath_figs-spline_fit"
-
-with open(os.path.join(figure_root_dir, "all_trials.pickle"), "wb") as f:
-    pickle.dump(all_trials, f)
-
-with open(os.path.join(figure_root_dir, "all_breaths.pickle"), "wb") as f:
-    pickle.dump(all_breaths, f)
 
 # %%
 # plot options
 
 exist_ok = True  # False --> error out if folder already exists
-skip_replot = False  # True --> if the plot path already exists, skip replot (just process metadata)
+skip_replot = True  # True --> if the plot path already exists, skip replot (just process metadata)
 
 pre_time_s = 0.1
 post_time_s = 3.1
-ylims = [-3500, 10000]
+ylims = [0, 15e3]  # Hz
+figure_root_dir = "./data/spectrograms"
+spectrograms_root_dir = "./data/audio_objs"
+
+# %%
+# pickle all_trials
+
+with open(os.path.join(figure_root_dir, "all_trials.pickle"), "wb") as f:
+    pickle.dump(all_trials, f)
 
 # %%
 # plot & make json records
@@ -195,14 +141,29 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
                 f"Couldn't parse birdname from: {root}\nIf this bird just has one band, you should find this and hard-code its name."
             )
 
+    audiofile_plot_folder = os.path.join(figure_root_dir, bird, basename)
+    os.makedirs(audiofile_plot_folder, exist_ok=exist_ok)
+
+    spx_path = os.path.join(spectrograms_root_dir, bird)
+    os.makedirs(spx_path, exist_ok=exist_ok)
+
     block = int(parse_parameter_from_string(root, "Block", chars_to_ignore=0))
 
     # load audio & relevant stims
     stim_trials = all_trials.xs(file)
-    ao = AudioObject.from_wav(file, channels=1)
 
-    audiofile_plot_folder = os.path.join(figure_root_dir, bird, basename)
-    os.makedirs(audiofile_plot_folder, exist_ok=exist_ok)
+    pickled_audio = os.path.join(spx_path, f"{basename}.pickle")
+    if os.path.exists(pickled_audio):
+        pass
+        # with open( pickled_audio, "rb") as f:
+        #     ao = pickle.load(f)
+    else:
+        ao = AudioObject.from_wav(file, channel=0)
+        ao.filtfilt_butter_default(f_low=500, f_high=15e3)
+        ao.make_spectrogram()
+
+        with open(pickled_audio, "wb") as f:
+            pickle.dump(ao, f)
 
     # for each stim trial in this audio file
     for t in stim_trials.index:
@@ -217,16 +178,12 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
                 "trial_start_s",
                 "trial_end_s",
                 "calls_index",
-                "stim_phase",
-                "putative_call",
-                "breath_zero_point",
             ]
         }
         metadata["wav_filename"] = file
         metadata["trial"] = t
         metadata["bird"] = bird
         metadata["block"] = block
-        metadata["call_types"] = np.unique(stim_trials.loc[t, "call_types"])
         metadata["plot_id"] = f"{basename}-tr{t}"
         metadata["plot_filename"] = plot_filename
 
@@ -236,30 +193,23 @@ for file in all_trials.index.get_level_values("wav_filename").unique():
         if np.isinf(metadata["trial_end_s"]):
             metadata["trial_end_s"] = "Inf"
 
-        breath_filt = filtfilt(b, a, ao.audio)
-
-        fig, ax = plt.subplots(figsize=(10, 5))
-
         if not os.path.exists(plot_filename) or not skip_replot:
-            ax = plot_breath_callback_trial(
-                breath=breath_filt,
-                fs=ao.fs,
-                stim_trial=stim_trials.loc[t],
-                y_breath_labels=metadata["breath_zero_point"],
-                pre_time_s=pre_time_s,
-                post_time_s=post_time_s,
-                ylims=ylims,
-                st_s=st,
-                en_s=en,
-                ax=ax,
-                color_dict={"exp": "r", "insp": "b"},
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+
+            ao.plot_spectrogram(x_offset_s=-1 * st, ax=ax, vmin=0.7)
+
+            ax.set(
+                title=metadata["plot_id"],
+                xlim=[-1 * pre_time_s, post_time_s],
+                xlabel="Time, stim-aligned (s)",
+                ylim=ylims,
             )
 
-            ax.set(title=metadata["plot_id"])
-
             fig.savefig(plot_filename)
+            plt.close("all")
+
         records[metadata["plot_id"]] = metadata
-        plt.close()
 
 records
 
@@ -276,8 +226,9 @@ else:
 extant_records = merge_json(
     records,
     extant_records,
-    dict_fields={"plot_filename": "kde-threshold"},
+    dict_fields={"plot_filename": "spectrogram"},
     fields_to_remove=("breath_zero_point", "calls_index"),
+    keep_extant_fields=True,
 )
 
 # write records

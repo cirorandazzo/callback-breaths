@@ -56,7 +56,7 @@ print(f"{len(files)} files.")
 file = files[2]
 
 channels = AudioObject.from_wav(
-    file, channels="all", channel_names=["audio", "breath", "trigger"]
+    file, channel="all", channel_names=["audio", "breath", "trigger"]
 )
 
 print("50Hz lowpass")
@@ -92,7 +92,7 @@ plt.show()
 fig, axs = plt.subplots(nrows=len(files), sharex=True)
 
 for file, ax in zip(files, axs.ravel()):
-    breath = AudioObject.from_wav(file, channels=1, b=b, a=a)
+    breath = AudioObject.from_wav(file, channel=1, b=b, a=a)
 
     # refilter (useful if testing out filter options)
     breath.filtfilt(b, a)
@@ -122,7 +122,7 @@ fig, axs = plt.subplots(nrows=len(files), sharex=True)
 for file, ax in zip(files, axs.ravel()):
     ax.set(title=os.path.basename(file))
 
-    breath = AudioObject.from_wav(file, channels=1, b=b, a=a)
+    breath = AudioObject.from_wav(file, channel=1, b=b, a=a)
     stdev = pd.Series(breath.audio_filt).rolling(window=window_size).std()
 
     # PLOT STDEV
@@ -160,7 +160,7 @@ from utils.breath import plot_amplitude_dist
 fig, axs = plt.subplots(nrows=len(files), sharex=True)
 
 for file, ax in zip(files, axs.ravel()):
-    breath = AudioObject.from_wav(file, channels=1, b=b, a=a)
+    breath = AudioObject.from_wav(file, channel=1, b=b, a=a)
     plot_amplitude_dist(breath.audio_filt, ax)
     ax.set(title=os.path.basename(file), ylabel="density")
 
@@ -185,7 +185,7 @@ sos_bp = butter(N=2, Wn=[0.2, 50], btype="bandpass", fs=fs, output="sos")
 
 for i_file, file in enumerate(files):
 
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -220,7 +220,7 @@ b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
 
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -258,7 +258,7 @@ axs = axs.T
 b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -292,7 +292,7 @@ axs = axs.T
 b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -330,7 +330,7 @@ b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 b_slp, a_slp = butter(N=2, Wn=10, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -409,7 +409,7 @@ axs_dist = axs_dist.T
 b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -489,7 +489,7 @@ axs_dist = axs_dist.T
 b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
@@ -597,7 +597,7 @@ axs_dist = axs_dist.T
 b_lp, a_lp = butter(N=2, Wn=50, btype="low", fs=fs)
 
 for i_file, file in enumerate(files):
-    breath = AudioObject.from_wav(file, channels=1, b=b_lp, a=a_lp)
+    breath = AudioObject.from_wav(file, channel=1, b=b_lp, a=a_lp)
     x = breath.get_x()
 
     # get lowpass filt
