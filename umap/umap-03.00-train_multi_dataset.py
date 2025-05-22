@@ -171,7 +171,8 @@ if __name__ == "__main__":
 
     idx_subsampled = []
 
-    seed = 141787999960910448216396417811445764406
+    # seed = 141787999960910448216396417811445764406
+    seed = 141787999960910448255555417811445764406
     rng = np.random.default_rng(seed=seed)
 
     for d in datasets:
@@ -204,18 +205,12 @@ if __name__ == "__main__":
     print("Making kwargs for gridsearch...")
 
     # particular parameter dicts to exclude
-    exclude = [
-        {"n_neighbors": 1400, "min_dist": 0.001, "metric": "euclidean"},
-        {"n_neighbors": 1400, "min_dist": 0.01, "metric": "euclidean"},
-        {"n_neighbors": 1400, "min_dist": 0.1, "metric": "euclidean"},
-        {"n_neighbors": 1400, "min_dist": 0.5, "metric": "euclidean"},
-        {"n_neighbors": 1400, "min_dist": 0.7, "metric": "euclidean"},
-    ]
+    exclude = []
 
     umap_params = dict(
-        n_neighbors=[1400, 2000, 3000, 5000],
-        min_dist=[0.001, 0.01, 0.1, 0.5, 0.7],
-        metric=["euclidean", "cosine"],
+        n_neighbors=[2, 3, 5, 7],
+        min_dist=[0.001, 0.005, 0.01, 0.1, 0.5, 0.7, 0.9],
+        metric=["euclidean"],
     )
 
     # make parameter combinations
@@ -239,7 +234,14 @@ if __name__ == "__main__":
 
     print("Training UMAP embeddings...")
 
-    errors = run_umap_gridsearch(data, conditions, embedding_path, "insp", True, False)
+    errors = run_umap_gridsearch(
+        data,
+        conditions,
+        embedding_path,
+        label="insp",
+        do_plot=True,
+        overwrite=False,
+    )
 
     print(f"Finished training UMAPs! {len(errors)} errors.")
     print(f"Total time elapsed: {time.time() - program_start}s)\n")
