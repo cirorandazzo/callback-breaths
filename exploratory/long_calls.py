@@ -341,7 +341,7 @@ audio = data[audio_row, :]
 breath = data[breath_row, :]
 
 
-def plot_seg(row, ax, align=None, c=None):
+def plot_breath_seg(row, ax, align=None, c=None):
     fs = row.fs
 
     segment = cut_segment(
@@ -360,30 +360,38 @@ def plot_seg(row, ax, align=None, c=None):
     ax.plot(x, segment, c=c)
 
 
-def plot_long_call_trace(ax, df_file, breath, plot_seg):
+def plot_file_trace_with_highlights(df_file, breath_file, ax=None):
+    """
+    TODO: generalize to highlight multiple breaths from df_file. or, maybe just pass multiple df_file (with diff views)?
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
 
     assert df_file.fs.nunique() == 1
     fs = df_file.iloc[0].fs
 
     # plot trace
-    ax.plot(np.arange(len(breath)) / fs, breath, c="k", linewidth=0.5)
+    ax.plot(np.arange(len(breath_file)) / fs, breath_file, c="k", linewidth=0.5)
 
     # highlight considered traces
     df_file.loc[df_file.is_long_call].apply(
-        plot_seg, axis=1, args=[ax, "start_s", "green"]
+        plot_breath_seg, axis=1, args=[ax, "start_s", "green"]
     )
     df_file.loc[~df_file.is_long_call].apply(
-        plot_seg, axis=1, args=[ax, "start_s", "red"]
+        plot_breath_seg, axis=1, args=[ax, "start_s", "red"]
     )
 
     ax.set(ylabel="breath amplitude (norm)")
+
+    return ax
 
 
 # %%
 # plot breath trace for this file (highlight long calls)
 
 fig, ax = plt.subplots(figsize=(20, 10))
-plot_long_call_trace(ax, df_file, breath, plot_seg)
+plot_file_trace_with_highlights(df_file, breath, plot_breath_seg, ax)
 
 # %%
 # plot spectrogram & breath trace for this file (highlight long calls)
@@ -399,18 +407,18 @@ ao.plot_spectrogram(ax=ax, cmap="jet", vmin=0.7)
 
 # plot breath trace (putative long calls highlighted)
 ax = axs[1]
-plot_long_call_trace(ax, df_file, breath, plot_seg)
+plot_file_trace_with_highlights(ax, df_file, breath, plot_breath_seg)
 
 # %%
 # plot 2 panel: long calls vs. non-long calls
 
 fig, axs = plt.subplots(ncols=2, sharex=True, sharey=True)
 ax = axs[0]
-df_file.loc[df_file.is_long_call].apply(plot_seg, axis=1, args=[ax])
+df_file.loc[df_file.is_long_call].apply(plot_breath_seg, axis=1, args=[ax])
 ax.set(title="long call")
 
 ax = axs[1]
-df_file.loc[~df_file.is_long_call].apply(plot_seg, axis=1, args=[ax])
+df_file.loc[~df_file.is_long_call].apply(plot_breath_seg, axis=1, args=[ax])
 ax.set(title="not long call")
 
 # %%

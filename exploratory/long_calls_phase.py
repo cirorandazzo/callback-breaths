@@ -12,8 +12,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
 from utils.breath.phase import get_phase
+from utils.breath.plot import plot_histogram_by_bird_type_dset
+from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
+
+# %load_ext autoreload
+# %autoreload 1
+# %aimport utils.breath
+
 
 # %%
 # load long call data
@@ -97,30 +103,25 @@ print(long_files.groupby(by="type").dataset.value_counts())
 # %%
 # plot breath durations by bird/dataset
 
-bins = np.linspace(0, all_breaths.duration_s.max(), 100)
+plots = plot_histogram_by_bird_type_dset(
+    all_breaths,
+    column="duration_s",
+    bins=np.linspace(0, all_breaths.duration_s.max(), 100),
+)
 
-for bird, df_bird in all_breaths.groupby(by="birdname"):
+# %%
+# plot breath amplitudes by bird/dataset
 
-    fig, axs = plt.subplots(nrows=df_bird.type.nunique(), sharex=True, figsize=(4, 7))
-
-    fig.suptitle(bird)
-
-    for ax, (type, df_type) in zip(axs, df_bird.groupby(by="type")):
-
-        ax.set(title=f"{type}")
-
-        for dataset, dset_df in df_type.groupby(by="dataset"):
-            ax.hist(
-                dset_df.duration_s,
-                bins=bins,
-                histtype="step",
-                label=dataset,
-            )
-
-    axs[0].set(ylabel="breath count")
-    axs[-1].set(xlabel="duration (s)")
-    axs[-1].legend()
-
+plots = plot_histogram_by_bird_type_dset(
+    all_breaths,
+    column="amplitude",
+    # bins=np.linspace(-20, 40, 100),  # more or less all
+    # bins=np.linspace(7, 40, 100),  # calls
+    # bins=np.linspace(-5, 5, 100),  # baseline breathing
+    fig_kwargs=dict(sharex=False),
+    hist_kwargs=dict(density=True, alpha=0.5),
+    legend=False,
+)
 
 # %%
 # get mean breath durations
@@ -234,6 +235,33 @@ all_breaths.loc[:, "phase"] = all_breaths.apply(get_phase_wrapper, axis=1)
 all_breaths
 
 # %%
+# putative_call, putative_song
+
+threshold = 8
+all_breaths.loc[:, "putative_call"] = (all_breaths.type == "exp") & (
+    all_breaths.amplitude > threshold
+)
+
+all_breaths.loc[:, "putative_song"] = all_breaths["putative_call"] & (
+    all_breaths.groupby(by="audio_filename").putative_call.shift(-2)
+    | all_breaths.groupby(by="audio_filename").putative_call.shift(2)
+)
+
+# can't be both call & song
+all_breaths.loc[all_breaths.putative_song, "putative_call"] = False
+
+print(
+    "\n".join(
+        [
+            f"calls: {all_breaths.putative_call.sum()}",
+            f"song: {all_breaths.putative_song.sum()}",
+            f"both: {(all_breaths.putative_call & all_breaths.putative_song).sum()}",
+            f"neither: {(~(all_breaths.putative_call & all_breaths.putative_song)).sum()}",
+        ]
+    )
+)
+
+# %%
 # plot polar histograms by bird/dset (all_breaths)
 
 
@@ -292,23 +320,38 @@ fig.suptitle("Phases: all breaths", y=1)
 # %%
 # phases for all calls
 
-threshold = 8
-ii_call = (all_breaths.type == "exp") & (all_breaths.amplitude > threshold)
+ii_call = all_breaths["putative_call"]
 fig, axs = plot_polar_histograms(all_breaths.loc[ii_call])
 fig.suptitle("Phases: all calls", y=1)
 
 # %%
 # phases for long calls
+#
+# note: inclusion of all_breaths["putative_call"] rejects song (see definition above)
 
-ii_long_call = thresholded["is_long_call"].reindex(all_breaths.index, fill_value=False)
+ii_long_call = all_breaths["putative_call"] & thresholded["is_long_call"].reindex(
+    all_breaths.index, fill_value=False
+)
 fig, axs = plot_polar_histograms(all_breaths.loc[ii_long_call])
 fig.suptitle("Phases: long calls", y=1)
 
 # %%
 # phases for nonlong calls
+#
+# note: inclusion of all_breaths["putative_call"] rejects song (see definition above)
 
-ii_nonlong_call = (~thresholded["is_long_call"]).reindex(
+ii_nonlong_call = all_breaths["putative_call"] & (~thresholded["is_long_call"]).reindex(
     all_breaths.index, fill_value=False
 )
 fig, axs = plot_polar_histograms(all_breaths.loc[ii_nonlong_call])
 fig.suptitle("Phases: nonlong calls", y=1)
+
+# %%
+# phases for song
+
+ii_song = all_breaths["putative_song"]
+
+fig, axs = plot_polar_histograms(all_breaths.loc[ii_song])
+fig.suptitle("Phases: song", y=1)
+
+# %%
