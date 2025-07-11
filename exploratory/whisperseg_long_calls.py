@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 
 from pymatreader import read_mat
 
+from utils.audio import AudioObject
+from utils.breath.preprocess import load_datasets, TEMP_assert_file_quality
+from utils.breath.plot import plot_histogram_by_bird_type_dset
 from utils.callbacks import read_calls_from_mat
 from utils.file import parse_birdname
 
@@ -17,11 +20,12 @@ from utils.file import parse_birdname
 # %aimport utils.callbacks
 
 # %%
+# load long calls indices
 
-long_call_report = r".\hamish_long_calls.csv"
+long_call_report = r".\whisperseg_long_calls.csv"
 
 with open(long_call_report, "r") as f:
-    data = f.readlines()
+    long_calls_indices = f.readlines()
 
 
 def process_line(line):
@@ -40,15 +44,17 @@ def process_line(line):
     return folder, file, calls
 
 
-data = pd.DataFrame.from_records(
-    list(map(process_line, data)),
+long_calls_indices = pd.DataFrame.from_records(
+    list(map(process_line, long_calls_indices)),
     columns=["folder", "file", "ii_long_calls"],
 )
 
 # matlab 1-index --> python 0-index
-data["ii_long_calls"] = data["ii_long_calls"].map(lambda x: np.array(x) - 1)
+long_calls_indices["ii_long_calls"] = long_calls_indices["ii_long_calls"].map(
+    lambda x: np.array(x) - 1
+)
 
-data.loc[:, "bird"] = data["file"].apply(
+long_calls_indices.loc[:, "bird"] = long_calls_indices["file"].apply(
     lambda x: (
         parse_birdname(
             str(Path(x).stem),
@@ -57,17 +63,17 @@ data.loc[:, "bird"] = data["file"].apply(
     ),
 )
 
-data.set_index(keys=["bird", "folder", "file"], inplace=True)
-data.sort_index(inplace=True)
+long_calls_indices.set_index(keys=["bird", "folder", "file"], inplace=True)
+long_calls_indices.sort_index(inplace=True)
 
-data
+long_calls_indices
 
 # %%
-# folders per bird
+# long calls: show folders for each bird in dataset
 #
 # "bird" pulled from filename; show all folders containing such a file
 
-for bird, df_bird in data.groupby(by="bird"):
+for bird, df_bird in long_calls_indices.groupby(by="bird"):
     print(bird)
 
     for f, n in dict(df_bird.reset_index().folder.value_counts()).items():
@@ -75,57 +81,43 @@ for bird, df_bird in data.groupby(by="bird"):
         # print(f)
 
 # %%
-# look at good files
-# NOTE: this is done in preprocessing/load_raw_files.py
+# load breath dataframes
+# created in preprocessing/load_raw_files.py
 
-# parent = Path(r"M:\public\from_egret\egret\eszter\data\air sac\MALES\noCapacitor")
-
-# file_type = "cbin"
-
+# good folders (for this purpose)
 # good_folders = [
 #     r"gr56bu23\postImplant\baseline",  # also incl. rd16gr95 files
 #     r"gr92gr19\postCannula\muscimol\right HVC\baseline",
 # ]
 
-# files = (
-#     pd.DataFrame.from_records(
-#         [
-#             (
-#                 parse_birdname(
-#                     str(file.stem), birdname_regex=r"(?:[a-z]{1,2}[0-9]{1,2}){1,2}"
-#                 ),
-#                 f"\\{folder}",
-#                 f"{file.name}.not.mat",
-#                 file,
-#             )
-#             for folder in good_folders
-#             for file in (parent / folder).glob(f"*.{file_type}")
-#         ],
-#         columns=["bird", "folder", "file", "audio_file"],
-#     )
-#     .set_index(["bird", "folder", "file"])
-#     .sort_index()
-# )
-
-# print(f"{len(files)} files found.")
-
-# files
-
-# %%
-# store long calls
-
-# %%
-
 processed_parent = Path(r"M:\randazzo\breathing\processed\spontaneous_long_calls")
+df_prefix = "spontaneous_long_calls"
 
-
-errors = pd.read_pickle(processed_parent / "spontaneous_long_calls-errors.pickle")
-all_breaths = pd.read_pickle(
-    processed_parent / "spontaneous_long_calls-all_breaths.pickle"
-)
-all_files = pd.read_pickle(processed_parent / "spontaneous_long_calls-all_files.pickle")
+all_breaths = pd.read_pickle(processed_parent / f"{df_prefix}-all_breaths.pickle")
+all_files = pd.read_pickle(processed_parent / f"{df_prefix}-all_files.pickle")
+errors = pd.read_pickle(processed_parent / f"{df_prefix}-errors.pickle")
 
 all_files
+
+# %%
+# check errors
+
+assert len(errors) == 0, "Error(s) found in preprocessing."
+
+print(f"{len(all_breaths)} breaths found across {len(all_files)} files. ({len(all_breaths)/len(all_files):.2f} per file)")
+
+# %%
+# plot
+all_breaths["dataset"] = df_prefix
+
+plot_histogram_by_bird_type_dset(
+    all_breaths,
+    "duration_s",
+    bins=np.linspace(0, .5, 70),
+    fig_kwargs=None,
+    hist_kwargs=None,
+    legend=False,
+)
 
 # %%
 # match indices for `data` with `all_files` & `all_breaths`
@@ -144,8 +136,8 @@ all_breaths["notmat_name"] = all_breaths.index.to_series().map(
 )
 
 # data
-data = data.reset_index().set_index("file")
-data
+long_calls_indices = long_calls_indices.reset_index().set_index("file")
+long_calls_indices
 
 all_files
 
@@ -153,7 +145,7 @@ all_files
 # %%
 # add long_calls cols to all_files
 
-all_files["ii_long_calls"] = data["ii_long_calls"].reindex(
+all_files["ii_long_calls"] = long_calls_indices["ii_long_calls"].reindex(
     all_files.index, fill_value=[]
 )
 
