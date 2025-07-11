@@ -237,6 +237,7 @@ song_report
 # %%
 # show # of `short` gaps
 
+
 def plot_hist(x, ax=None, **set_kwargs):
     if ax is None:
         fig, ax = plt.subplots()
@@ -298,3 +299,90 @@ ax.set(
     xlabel="duration (s)",
     title=f"call duration - call-only files\n(n={len(x) } calls/{calls_only.index.get_level_values('file').nunique()} files)",
 )
+
+# %%
+# report on call-only duration by dataset/birdname
+
+fig, ax = plt.subplots()
+
+bins = np.linspace(0, calls_only.duration_s.max(), 100)
+
+gb_levels = ["dataset", "birdname"]
+# gb_levels = ["dataset"]
+
+for key, x in calls_only.groupby(by=gb_levels).duration_s:
+    if len(x) < 10:
+        print(f"Skipping {key} -- only {len(x)} calls.")
+        continue
+
+    ax.hist(
+        x,
+        bins=bins,
+        label="-".join(key) + f" (n={len(x)})",
+        histtype="step",
+        # density=True,
+    )
+
+ax.set(
+    xlabel="duration (s)",
+    title=f"call duration - call-only files\n(n={len(x) } calls/{calls_only.index.get_level_values('file').nunique()} files)",
+    # ylabel="density",
+    ylabel="count",
+)
+
+ax.legend(loc=(0.5, 0.5))
+
+# %%
+
+calls_only
+
+
+# %%
+# reindex calls_only
+
+calls_only["audio_name"] = calls_only.index.to_frame().file.apply(
+    lambda x: str(Path(x).name).replace(".not.mat", "")
+)
+
+calls_only = calls_only.reset_index().set_index(["audio_name", "calls_index"])
+
+# %%
+# reindex all_breaths
+
+all_breaths["audio_name"] = all_breaths.index.to_frame().audio_filename.apply(
+    lambda x: str(Path(x).name)
+)
+
+all_breaths = all_breaths.reset_index().set_index(["audio_name", "calls_index"])
+all_breaths.index.rename(
+    ["audio_name", "breaths_index"], inplace=True
+)  # rename for clarity - distinct from calls_only index level (where calls_index means audio signal)
+
+
+# %%
+# tie each call to a breath.
+#
+# nearly every call is wholly contained within a breath
+
+
+def get_breath(call, buffer_s=0):
+    file_stem, _ = call.name
+
+    file_breaths = all_breaths.xs(key=file_stem, level="audio_name")
+
+    breath = file_breaths.loc[
+        ((file_breaths.start_s - buffer_s) <= call.start_s)
+        & ((file_breaths.end_s + buffer_s) >= call.end_s)
+    ]
+
+    return list(breath.index)
+
+
+calls_only["breaths"] = calls_only.apply(get_breath, axis=1)
+
+calls_only["breaths"].apply(len).value_counts()
+
+# %%
+# TODO: figure out when audio call isn't fully encompassed by breath
+
+calls_only.loc[calls_only["breaths"].apply(len) == 0]
