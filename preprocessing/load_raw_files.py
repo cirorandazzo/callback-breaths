@@ -150,6 +150,35 @@ def main():
         n_jobs=n_jobs,
     )
 
+    # %%
+    # SPONTAEOUS LONG CALLS
+    #
+
+    input_parent_long_calls = Path(
+        r"M:\public\from_egret\egret\eszter\data\air sac\MALES\noCapacitor"
+    )
+
+    files = [
+        file
+        for folder in [
+            r"gr56bu23\postImplant\baseline",  # also incl. rd16gr95 files
+            r"gr92gr19\postCannula\muscimol\right HVC\baseline",
+        ]
+        for file in (input_parent_long_calls / folder).glob(f"**/*.cbin")
+    ]
+
+    preprocess_files(
+        files=files,
+        output_folder=output_parent.joinpath("spontaneous_long_calls"),
+        prefix="spontaneous_long_calls",
+        fs=32000,
+        channel_map={"audio": 0, "breath": 1},
+        has_stims=False,
+        stim_length=0.1,
+        output_exist_ok=False,
+        n_jobs=n_jobs,
+    )
+
     return
 
 

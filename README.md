@@ -80,3 +80,20 @@ In (rough) order of creation.
   - First pass at tying into UMAP clusters
 - `cycle_durations.py`
   - Is mean cycle duration a good baseline for phase computation?
+- `long_calls/`
+  - See section below.
+
+#### long calls
+
+Do long calls have a special (HVC-dependent) relationship with ongoing breathing?
+
+- `threshold_lc.py`: try thresholding long calls directly from breathing data, since not all audio data is usable.
+- `phase_lc.py`: using the determinations from `threshold_lc.py`, think about phase & long calls
+- `whisperseg_lc.py`: first pass at cross-verifying audio-segmented long calls (easier & better-defined problem) with breath-based threshold
+  - `whisperseg_long_calls.csv`: list of long calls pulled out of ziggy's data by hamish.
+  - there were only 2 useful birds in this data (gr56bu23, gr92gr19); many had stimulation, pharmacology, or something else going on.
+  - those 2 birds had fairly few calls (557 non-long, 61 long; don't recall how hamish thresholded long calls.)
+  ![whisperseg-segmented long calls; low n](./assets/whisperseg_long_calls.png)
+- `spontaneous_cross_verify_lc.py`
+  - ran whisperseg on the spontaneous and callback files that I'd previously analyzed; ignore the files where whisperseg doesn't find calls.
+  - this is well-positioned for expansion
