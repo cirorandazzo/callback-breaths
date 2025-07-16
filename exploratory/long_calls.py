@@ -265,6 +265,9 @@ all_files.n_long_calls.sort_values(ascending=False)
 
 save_folder = Path(r"M:\randazzo\breathing\long_calls")
 
+assert False, "pick whether to save"
+
+### SAVE
 # breaths - putative call only
 with open(save_folder / "thresholded_breaths-long_calls.pickle", "wb") as f:
     pickle.dump(thresholded, f)
@@ -276,6 +279,18 @@ with open(save_folder / "all_files-long_calls.pickle", "wb") as f:
 # all_breaths
 with open(save_folder / "all_breaths-long_calls.pickle", "wb") as f:
     pickle.dump(all_breaths, f)
+
+### OR LOAD
+# with open(save_folder / "thresholded_breaths-long_calls.pickle", "rb") as f:
+#     thresholded = pickle.load(f)
+
+# # files
+# with open(save_folder / "all_files-long_calls.pickle", "rb") as f:
+#     all_files = pickle.load(f)
+
+# # all_breaths
+# with open(save_folder / "all_breaths-long_calls.pickle", "rb") as f:
+#     all_breaths = pickle.load(f)
 
 # %%
 # n long calls per file
@@ -391,7 +406,7 @@ def plot_file_trace_with_highlights(df_file, breath_file, ax=None):
 # plot breath trace for this file (highlight long calls)
 
 fig, ax = plt.subplots(figsize=(20, 10))
-plot_file_trace_with_highlights(df_file, breath, plot_breath_seg, ax)
+plot_file_trace_with_highlights(df_file, breath, ax)
 
 # %%
 # plot spectrogram & breath trace for this file (highlight long calls)
@@ -407,7 +422,7 @@ ao.plot_spectrogram(ax=ax, cmap="jet", vmin=0.7)
 
 # plot breath trace (putative long calls highlighted)
 ax = axs[1]
-plot_file_trace_with_highlights(ax, df_file, breath, plot_breath_seg)
+plot_file_trace_with_highlights(df_file, breath, ax)
 
 # %%
 # plot 2 panel: long calls vs. non-long calls
